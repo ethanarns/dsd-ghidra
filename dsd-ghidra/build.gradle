@@ -65,3 +65,5 @@ dependencies {
 // Exclude additional files from the built extension
 buildExtension.exclude '.idea/**'
 buildExtension.exclude 'gradle/**'
+buildExtension.exclude 'gradle.properties'
+buildExtension.exclude 'gradle.properties.example'
