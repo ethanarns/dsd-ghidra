@@ -1,0 +1,6 @@
+/.vscode
+/target/
+*.dll
+*.so
+*.pdb
+/TODO.md

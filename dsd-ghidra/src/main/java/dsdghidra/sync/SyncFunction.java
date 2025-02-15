@@ -1,0 +1,145 @@
+package dsdghidra.sync;
+
+import dsdghidra.util.DataTypeUtil;
+import ghidra.app.cmd.disassemble.DisassembleCommand;
+import ghidra.app.cmd.function.CreateFunctionCmd;
+import ghidra.program.flatapi.FlatProgramAPI;
+import ghidra.program.model.address.Address;
+import ghidra.program.model.address.AddressRangeImpl;
+import ghidra.program.model.address.AddressSet;
+import ghidra.program.model.data.DataType;
+import ghidra.program.model.lang.OperandType;
+import ghidra.program.model.lang.Register;
+import ghidra.program.model.lang.RegisterValue;
+import ghidra.program.model.listing.*;
+import ghidra.program.model.scalar.Scalar;
+import ghidra.program.model.symbol.RefType;
+import ghidra.program.model.symbol.SourceType;
+import ghidra.program.model.util.CodeUnitInsertionException;
+import ghidra.util.exception.DuplicateNameException;
+import ghidra.util.exception.InvalidInputException;
+import ghidra.util.task.TaskMonitor;
+import org.bouncycastle.util.Arrays;
+
+import java.math.BigInteger;
+
+public class SyncFunction {
+    public final DsdSyncFunction dsdFunction;
+    public final SymbolName symbolName;
+    public final Address start;
+    public final Address end;
+    private final DsAddressSpace addressSpace;
+    private final Program program;
+
+    public SyncFunction(Program program, DsAddressSpace addressSpace, DsdSyncFunction dsdFunction)
+    throws InvalidInputException, DuplicateNameException {
+        Address start = addressSpace.fromAbsolute(dsdFunction.start);
+        Address end = addressSpace.fromAbsolute(dsdFunction.end - 1);
+
+        SymbolName symbolName = new SymbolName(program, dsdFunction.name.getString());
+
+        this.dsdFunction = dsdFunction;
+        this.symbolName = symbolName;
+        this.start = start;
+        this.end = end;
+        this.addressSpace = addressSpace;
+        this.program = program;
+    }
+
+    public AddressSet getCodeAddressSet(DsAddressSpace addressSpace) {
+        AddressSet codeSet = new AddressSet(start, end);
+        for (DsdSyncDataRange dataRange : dsdFunction.getDataRanges()) {
+            Address rangeStart = addressSpace.fromAbsolute(dataRange.start);
+            Address rangeEnd = addressSpace.fromAbsolute(dataRange.end).previous();
+            codeSet.deleteRange(rangeStart, rangeEnd);
+        }
+        return codeSet;
+    }
+
+    public Function getExistingGhidraFunction() {
+        FunctionManager functionManager = program.getFunctionManager();
+        return functionManager.getFunctionAt(start);
+    }
+
+    public Function createGhidraFunction(TaskMonitor monitor)
+    throws InvalidInputException, DuplicateNameException, CircularDependencyException {
+        Listing listing = program.getListing();
+
+        listing.clearCodeUnits(start, start.next(), true);
+        CreateFunctionCmd createFunctionCmd = new CreateFunctionCmd(symbolName.name, start, null,
+            SourceType.USER_DEFINED,
+            false, true
+        );
+        createFunctionCmd.applyTo(program, monitor);
+        Function function = listing.getFunctionAt(start);
+
+        function.setName(symbolName.name, SourceType.USER_DEFINED);
+        function.setParentNamespace(symbolName.namespace);
+
+        return function;
+    }
+
+    public void updateGhidraFunctionName(Function function)
+    throws InvalidInputException, DuplicateNameException, CircularDependencyException {
+        function.setName(symbolName.name, SourceType.USER_DEFINED);
+        function.setParentNamespace(symbolName.namespace);
+    }
+
+    public boolean ghidraFunctionNeedsUpdate(Function function) {
+        String ghidraFunctionName = function.getName();
+        boolean sameName = ghidraFunctionName.equals(symbolName.name);
+        boolean defaultNameBefore = ghidraFunctionName.startsWith("FUN_");
+        boolean defaultNameAfter = symbolName.symbol.startsWith("func_");
+
+        boolean needsUpdate = false;
+        if (!sameName) {
+            needsUpdate |= defaultNameBefore || !defaultNameAfter;
+        }
+        needsUpdate |= !function.getParentNamespace().equals(symbolName.namespace);
+
+        return needsUpdate;
+    }
+
+    public void definePoolConstants(FlatProgramAPI api) throws CodeUnitInsertionException {
+        DataType undefined4Type = DataTypeUtil.getUndefined4();
+
+        for (int poolConstant : dsdFunction.pool_constants.getArray()) {
+            Address poolAddress = addressSpace.fromAbsolute(poolConstant);
+            if (api.getDataAt(poolAddress) == null) {
+                api.createData(poolAddress, undefined4Type);
+            }
+        }
+    }
+
+    public void disassemble(Register thumbRegister, TaskMonitor monitor) {
+        BigInteger thumbModeValue = BigInteger.valueOf(dsdFunction.thumb ? 1L : 0L);
+        DisassembleCommand disassembleCommand = new DisassembleCommand(start, null, true);
+        disassembleCommand.enableCodeAnalysis(false);
+        disassembleCommand.setInitialContext(new RegisterValue(thumbRegister, thumbModeValue));
+        disassembleCommand.applyTo(program, monitor);
+    }
+
+    public void referPoolConstants(FlatProgramAPI api) {
+        Listing listing = api.getCurrentProgram().getListing();
+        int[] poolConstants = dsdFunction.pool_constants.getArray();
+
+        for (Instruction instruction : listing.getInstructions(new AddressSet(start, end), true)) {
+            for (int i = 0; i < instruction.getNumOperands(); ++i) {
+                if (instruction.getOperandType(i) != OperandType.SCALAR) {
+                    continue;
+                }
+                for (Object opObject : instruction.getOpObjects(i)) {
+                    if (!(opObject instanceof Scalar scalar)) {
+                        continue;
+                    }
+                    int value = (int) scalar.getValue();
+                    if (!Arrays.contains(poolConstants, value)) {
+                        continue;
+                    }
+                    Address address = addressSpace.fromAbsolute(value);
+                    api.createMemoryReference(instruction, i, address, RefType.READ);
+                }
+            }
+        }
+    }
+}
