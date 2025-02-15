@@ -14,7 +14,15 @@ Ghidra loader and scripts for DS decompilation projects, powered by [`dsd`](http
 5. Restart Ghidra
 
 ## Usage
-Once installed, you can load a DS game by dropping a DS ROM file into the Ghidra project window.
+
+### Load a DS game
+You can load a DS game by dropping a DS ROM file into the Ghidra project window, then following the steps as they appear.
+
+> [!CAUTION]
+> You may be prompted to auto-analyze your newly generated Ghidra program. Do not do this if you are going to use dsd! Instead, you should use the [sync script](#sync-with-dsd) since it will result in more accurate function analysis.
+
+### Sync with dsd
+You can synchronize your Ghidra program with a dsd configuration by running the `SyncDsd.java` script in the Script Manager. The script can also be added to the toolbar by checking the "In Tool" checkbox.
 
 ## How to build
 
