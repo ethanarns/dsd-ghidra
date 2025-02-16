@@ -1,6 +1,6 @@
-use std::{fs::File, io::Read, path::Path};
+use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use ds_decomp::config::{
     config::{Config, ConfigModule},
     delinks::Delinks,
@@ -9,7 +9,7 @@ use ds_decomp::config::{
     section::SectionKind,
     symbol::{SymData, SymbolMap},
 };
-use ds_rom::rom::raw::AutoloadKind;
+use ds_rom::rom::{raw::AutoloadKind, Rom, RomLoadOptions};
 use unarm::arm;
 
 use crate::{
@@ -87,18 +87,30 @@ impl SafeDsdConfigData {
         let config = Config::from_file(path)?;
         let config_path = path.parent().unwrap();
 
-        let arm9 = SafeDsdSyncModule::new(ModuleKind::Arm9, config_path, &config.main_module)?;
+        let rom = Rom::load(
+            config_path.join(&config.rom_config),
+            RomLoadOptions { key: None, compress: false, encrypt: false, load_files: false },
+        )?;
+
+        let arm9 = SafeDsdSyncModule::new(ModuleKind::Arm9, config_path, &config.main_module, rom.arm9().code()?)?;
+        let rom_autoloads = rom.arm9().autoloads()?;
         let autoloads = config
             .autoloads
             .iter()
             .map(|autoload| {
+                let code = rom_autoloads
+                    .iter()
+                    .find(|a| a.kind() == autoload.kind)
+                    .with_context(|| format!("Autoload {} not present in ROM", autoload.kind))?
+                    .code();
+
                 Ok(SafeDsdSyncAutoload {
                     kind: match autoload.kind {
                         AutoloadKind::Itcm => DsdSyncAutoloadKind::Itcm,
                         AutoloadKind::Dtcm => DsdSyncAutoloadKind::Dtcm,
                         AutoloadKind::Unknown(_) => DsdSyncAutoloadKind::Unknown,
                     },
-                    module: SafeDsdSyncModule::new(ModuleKind::Autoload(autoload.kind), config_path, &autoload.module)?,
+                    module: SafeDsdSyncModule::new(ModuleKind::Autoload(autoload.kind), config_path, &autoload.module, code)?,
                 })
             })
             .collect::<Result<_>>()?;
@@ -106,9 +118,10 @@ impl SafeDsdConfigData {
             .overlays
             .iter()
             .map(|overlay| {
+                let code = rom.arm9_overlays()[overlay.id as usize].code();
                 Ok(SafeDsdSyncOverlay {
                     id: overlay.id,
-                    module: SafeDsdSyncModule::new(ModuleKind::Overlay(overlay.id), config_path, &overlay.module)?,
+                    module: SafeDsdSyncModule::new(ModuleKind::Overlay(overlay.id), config_path, &overlay.module, code)?,
                 })
             })
             .collect::<Result<_>>()?;
@@ -130,7 +143,12 @@ impl TryIntoUnsafe for SafeDsdConfigData {
 }
 
 impl SafeDsdSyncModule {
-    pub fn new<P: AsRef<Path>>(module_kind: ModuleKind, root_path: P, config_module: &ConfigModule) -> Result<Self> {
+    pub fn new<P: AsRef<Path>>(
+        module_kind: ModuleKind,
+        root_path: P,
+        config_module: &ConfigModule,
+        code: &[u8],
+    ) -> Result<Self> {
         let root_path = root_path.as_ref();
 
         let delinks = Delinks::from_file(root_path.join(&config_module.delinks), module_kind)?;
@@ -191,15 +209,13 @@ impl SafeDsdSyncModule {
 
         let relocs = Relocations::from_file(root_path.join(&config_module.relocations))?;
 
-        let mut code = vec![];
-        File::open(root_path.join(&config_module.object))?.read_to_end(&mut code)?;
         let module = match module_kind {
-            ModuleKind::Arm9 => Module::new_arm9(config_module.name.clone(), &mut symbol_map, relocs, delinks.sections, &code),
+            ModuleKind::Arm9 => Module::new_arm9(config_module.name.clone(), &mut symbol_map, relocs, delinks.sections, code),
             ModuleKind::Overlay(id) => {
-                Module::new_overlay(config_module.name.clone(), &mut symbol_map, relocs, delinks.sections, id, &code)
+                Module::new_overlay(config_module.name.clone(), &mut symbol_map, relocs, delinks.sections, id, code)
             }
             ModuleKind::Autoload(kind) => {
-                Module::new_autoload(config_module.name.clone(), &mut symbol_map, relocs, delinks.sections, kind, &code)
+                Module::new_autoload(config_module.name.clone(), &mut symbol_map, relocs, delinks.sections, kind, code)
             }
         }?;
 
