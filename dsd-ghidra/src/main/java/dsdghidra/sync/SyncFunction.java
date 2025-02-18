@@ -3,9 +3,9 @@ package dsdghidra.sync;
 import dsdghidra.util.DataTypeUtil;
 import ghidra.app.cmd.disassemble.DisassembleCommand;
 import ghidra.app.cmd.function.CreateFunctionCmd;
+import ghidra.program.database.function.OverlappingFunctionException;
 import ghidra.program.flatapi.FlatProgramAPI;
 import ghidra.program.model.address.Address;
-import ghidra.program.model.address.AddressRangeImpl;
 import ghidra.program.model.address.AddressSet;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.lang.OperandType;
@@ -46,7 +46,7 @@ public class SyncFunction {
         this.program = program;
     }
 
-    public AddressSet getCodeAddressSet(DsAddressSpace addressSpace) {
+    public AddressSet getCodeAddressSet() {
         AddressSet codeSet = new AddressSet(start, end);
         for (DsdSyncDataRange dataRange : dsdFunction.getDataRanges()) {
             Address rangeStart = addressSpace.fromAbsolute(dataRange.start);
@@ -62,27 +62,25 @@ public class SyncFunction {
     }
 
     public Function createGhidraFunction(TaskMonitor monitor)
-    throws InvalidInputException, DuplicateNameException, CircularDependencyException {
+    throws InvalidInputException, DuplicateNameException, CircularDependencyException, OverlappingFunctionException {
         Listing listing = program.getListing();
 
-        listing.clearCodeUnits(start, start.next(), true);
-        CreateFunctionCmd createFunctionCmd = new CreateFunctionCmd(symbolName.name, start, null,
+        AddressSet body = this.getCodeAddressSet();
+        CreateFunctionCmd createFunctionCmd = new CreateFunctionCmd(symbolName.name, start, body,
             SourceType.USER_DEFINED,
             false, true
         );
         createFunctionCmd.applyTo(program, monitor);
         Function function = listing.getFunctionAt(start);
-
-        function.setName(symbolName.name, SourceType.USER_DEFINED);
-        function.setParentNamespace(symbolName.namespace);
-
+        this.updateGhidraFunction(function);
         return function;
     }
 
-    public void updateGhidraFunctionName(Function function)
-    throws InvalidInputException, DuplicateNameException, CircularDependencyException {
+    public void updateGhidraFunction(Function function)
+    throws InvalidInputException, DuplicateNameException, CircularDependencyException, OverlappingFunctionException {
         function.setName(symbolName.name, SourceType.USER_DEFINED);
         function.setParentNamespace(symbolName.namespace);
+        function.setBody(this.getCodeAddressSet());
     }
 
     public boolean ghidraFunctionNeedsUpdate(Function function) {
@@ -91,13 +89,19 @@ public class SyncFunction {
         boolean defaultNameBefore = ghidraFunctionName.startsWith("FUN_");
         boolean defaultNameAfter = symbolName.symbol.startsWith("func_");
 
-        boolean needsUpdate = false;
-        if (!sameName) {
-            needsUpdate |= defaultNameBefore || !defaultNameAfter;
+        if (!sameName && (defaultNameBefore || !defaultNameAfter)) {
+            return true;
         }
-        needsUpdate |= !function.getParentNamespace().equals(symbolName.namespace);
+        if (!function.getParentNamespace().equals(symbolName.namespace)) {
+            return true;
+        }
 
-        return needsUpdate;
+        AddressSet body = this.getCodeAddressSet();
+        if (!function.getBody().equals(body)) {
+            return true;
+        }
+
+        return false;
     }
 
     public void definePoolConstants(FlatProgramAPI api) throws CodeUnitInsertionException {

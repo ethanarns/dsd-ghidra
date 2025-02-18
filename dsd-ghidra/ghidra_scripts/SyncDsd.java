@@ -11,6 +11,7 @@ import dialog.DsdConfigChooser;
 import dsdghidra.DsdGhidra;
 import dsdghidra.sync.*;
 import ghidra.app.script.GhidraScript;
+import ghidra.program.database.function.OverlappingFunctionException;
 import ghidra.program.model.address.*;
 import ghidra.program.model.lang.Register;
 import ghidra.program.model.listing.*;
@@ -182,7 +183,8 @@ public class SyncDsd extends GhidraScript {
     }
 
     private void updateFunction(DsdSyncFunction function, DsAddressSpace codeSpace)
-    throws InvalidInputException, DuplicateNameException, CodeUnitInsertionException, CircularDependencyException {
+    throws InvalidInputException, DuplicateNameException, CodeUnitInsertionException, CircularDependencyException,
+        OverlappingFunctionException {
 
         SyncFunction syncFunction = new SyncFunction(currentProgram, codeSpace, function);
 
@@ -197,9 +199,14 @@ public class SyncDsd extends GhidraScript {
         } else {
             if (syncFunction.ghidraFunctionNeedsUpdate(ghidraFunction)) {
                 println(
-                    "Updating function " + ghidraFunction + " at " + syncFunction.start + " to name " + syncFunction.symbolName.symbol);
+                    "Updating function " + syncFunction.symbolName.symbol + " at " + syncFunction.start);
                 if (!dryRun) {
-                    syncFunction.updateGhidraFunctionName(ghidraFunction);
+                    try {
+                        syncFunction.updateGhidraFunction(ghidraFunction);
+                    }
+                    catch(OverlappingFunctionException e) {
+                        this.printerr("Failed to update function size: " + e.getMessage());
+                    }
                 }
             }
         }
