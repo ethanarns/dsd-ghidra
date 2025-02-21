@@ -5,3 +5,8 @@
 *.pdb
 /TODO.md
 Cross.toml
+
+# Eclipse
+/dsd-ghidra/.settings/
+/dsd-ghidra/.project
+/dsd-ghidra/.classpath

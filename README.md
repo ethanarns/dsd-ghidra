@@ -52,7 +52,7 @@ You can also debug the extension through IntelliJ:
     5. Program arguments: `ghidra.GhidraRun`
     6. Environment variables: `GHIDRA_INSTALL_DIR=C:/path/to/ghidra_11.2.1_PUBLIC/`
 
-## How to build (Linux + VSCode)
+## How to build (Linux + Eclipse)
 
 1. Install cross (requires rustup and Docker, see [Installing Cross](https://github.com/cross-rs/cross/wiki/Getting-Started))
 2. Add the cross toolchain for Windows
@@ -64,4 +64,8 @@ You can also debug the extension through IntelliJ:
 4. Configure Gradle:
     1. Copy the `dsd-ghidra/gradle.properties.example` file to `dsd-ghidra/gradle.properties`
     2. Edit the `GHIDRA_INSTALL_DIR` property in `gradle.properties` to point to your Ghidra installation
-5. Enter the `dsd-ghidra` subdirectory and run `gradle`
+5. Load the project into Eclipse
+    1. Ensure you have the latest version of GhidraDev installed
+    2. Import the `dsd-ghidra` sub-project as a Gradle project
+    3. GhidraDev -> Link Ghidra
+    4. GhidraDev -> Export -> Extension
