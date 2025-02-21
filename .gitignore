@@ -4,3 +4,4 @@
 *.so
 *.pdb
 /TODO.md
+Cross.toml
