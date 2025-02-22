@@ -16,18 +16,18 @@ import ghidra.util.exception.InvalidInputException;
 public class SyncDataSymbol {
     public final DsdSyncDataSymbol dsdDataSymbol;
     public final SymbolName symbolName;
-    public final DsAddressSpace addressSpace;
+    public final DsSection dsSection;
     public final Address address;
     private final Program program;
 
-    public SyncDataSymbol(Program program, DsAddressSpace addressSpace, DsdSyncDataSymbol dsdDataSymbol)
+    public SyncDataSymbol(Program program, DsSection dsSection, DsdSyncDataSymbol dsdDataSymbol)
     throws InvalidInputException, DuplicateNameException {
         SymbolName symbolName = new SymbolName(program, dsdDataSymbol.name.getString());
-        Address address = addressSpace.fromAbsolute(dsdDataSymbol.address);
+        Address address = dsSection.getAddress(dsdDataSymbol.address);
 
         this.dsdDataSymbol = dsdDataSymbol;
         this.symbolName = symbolName;
-        this.addressSpace = addressSpace;
+        this.dsSection = dsSection;
         this.address = address;
         this.program = program;
     }

@@ -31,7 +31,6 @@ public class SyncDsd extends GhidraScript {
     private boolean dryRun = false;
 
     private Listing listing;
-    private DsAddressSpaces dsAddressSpaces;
     private Register thumbRegister;
     private DsModules dsModules;
 
@@ -44,12 +43,10 @@ public class SyncDsd extends GhidraScript {
     protected void run() throws Exception {
         this.listing = currentProgram.getListing();
         Memory memory = currentProgram.getMemory();
-        MemoryBlock[] memoryBlocks = memory.getBlocks();
-        this.dsAddressSpaces = new DsAddressSpaces(memoryBlocks);
         ProgramContext programContext = currentProgram.getProgramContext();
         this.thumbRegister = programContext.getRegister("TMode");
         this.dsModules = new DsModules(memory);
-//        this.println(this.dsModules.toString(0));
+        //        this.println(this.dsModules.toString(0));
 
         DsdConfigChooser dsdConfigChooser = new DsdConfigChooser(null, "Begin sync", propertiesFileParams);
         File file = dsdConfigChooser.getSelectedFile();
@@ -72,83 +69,59 @@ public class SyncDsd extends GhidraScript {
     }
 
     private void doSync(DsdSyncData dsdSyncData) throws Exception {
-        this.syncModule(dsdSyncData.arm9, dsAddressSpaces.main, dsAddressSpaces.mainBss, "arm9_main");
+        this.syncModule(dsdSyncData.arm9, dsModules.main);
         for (DsdSyncAutoload autoload : dsdSyncData.getAutoloads()) {
-            DsAddressSpace codeSpace = null;
-            DsAddressSpace bssSpace = null;
-            String moduleName = null;
             switch (autoload.getKind()) {
-                case Itcm -> {
-                    codeSpace = dsAddressSpaces.itcm;
-                    moduleName = "itcm";
-                }
-                case Dtcm -> {
-                    codeSpace = dsAddressSpaces.dtcm;
-                    bssSpace = dsAddressSpaces.dtcmBss;
-                    moduleName = "dtcm";
-                }
+                case Itcm -> this.syncModule(autoload.module, dsModules.itcm);
+                case Dtcm -> this.syncModule(autoload.module, dsModules.dtcm);
                 case Unknown -> {
-                    codeSpace = dsAddressSpaces.unknownAutoloads.get(autoload.module.base_address);
-                    bssSpace = dsAddressSpaces.unknownAutoloadsBss.get(autoload.module.base_address);
-                    if (codeSpace == null && bssSpace == null) {
+                    DsModule dsModule = dsModules.getAutoload(autoload.module.base_address);
+                    if (dsModule == null) {
                         throw new Exception(
                             "No memory blocks for unknown autoload at base address " + Integer.toHexString(
                                 autoload.module.base_address));
                     }
-                    moduleName = "autoload_" + Integer.toHexString(autoload.module.base_address);
+                    this.syncModule(autoload.module, dsModule);
                 }
             }
-            this.syncModule(autoload.module, codeSpace, bssSpace, moduleName);
         }
         for (DsdSyncOverlay overlay : dsdSyncData.getArm9Overlays()) {
-            DsAddressSpace codeSpace = dsAddressSpaces.overlay(overlay.id);
-            DsAddressSpace bssSpace = dsAddressSpaces.overlayBss(overlay.id);
-            if (codeSpace == null && bssSpace == null) {
+            DsModule dsModule = dsModules.getOverlay(overlay.id);
+            if (dsModule == null) {
                 throw new Exception("No memory blocks for overlay " + overlay.id);
             }
-            String moduleName = String.format("arm9_ov%03d", overlay.id);
-            this.syncModule(overlay.module, codeSpace, bssSpace, moduleName);
+            this.syncModule(overlay.module, dsModule);
         }
     }
 
-    private void syncModule(DsdSyncModule dsdSyncModule, DsAddressSpace codeSpace, DsAddressSpace bssSpace,
-        String moduleName
-    ) throws Exception {
-        this.removeSectionComments(codeSpace);
-        this.removeSectionComments(bssSpace);
+    private void syncModule(DsdSyncModule dsdSyncModule, DsModule dsModule) throws Exception {
         for (DsdSyncSection section : dsdSyncModule.getSections()) {
-            this.addSectionComment(section, codeSpace, bssSpace, moduleName, "");
+            DsSection dsSection = dsModule.getSection(section.base.name.getString());
+            this.removeSectionComments(dsSection);
+
+            this.addSectionComment(section.base, dsModule, "");
+
+            for (DsdSyncFunction function : section.getFunctions()) {
+                this.updateFunction(function, dsSection);
+            }
+            for (DsdSyncDataSymbol dataSymbol : section.getSymbols()) {
+                this.updateData(dataSymbol, dsSection);
+            }
+            for (DsdSyncRelocation relocation : section.getRelocations()) {
+                this.updateReferences(relocation, dsSection);
+            }
         }
         for (DsdSyncDelinkFile file : dsdSyncModule.getFiles()) {
             String fileName = file.name.getString();
-            for (DsdSyncSection section : file.getSections()) {
-                this.addSectionComment(section, codeSpace, bssSpace, moduleName, fileName);
+            for (DsdSyncBaseSection section : file.getSections()) {
+                this.addSectionComment(section, dsModule, fileName);
             }
         }
 
-        for (DsdSyncFunction function : dsdSyncModule.getFunctions()) {
-            this.updateFunction(function, codeSpace);
-        }
-
-        for (DsdSyncDataSymbol dataSymbol : dsdSyncModule.getDataSymbols()) {
-            this.updateData(dataSymbol, codeSpace);
-        }
-        for (DsdSyncDataSymbol bssSymbol : dsdSyncModule.getBssSymbols()) {
-            this.updateData(bssSymbol, bssSpace);
-        }
-
-        for (DsdSyncRelocation relocation : dsdSyncModule.getRelocations()) {
-            this.updateReferences(relocation, codeSpace);
-        }
     }
 
-    private void removeSectionComments(DsAddressSpace addressSpace) {
-        if (addressSpace == null) {
-            return;
-        }
-        AddressSet addressSet = new AddressSet(addressSpace.addressSpace.getMinAddress(),
-            addressSpace.addressSpace.getMaxAddress()
-        );
+    private void removeSectionComments(DsSection dsSection) {
+        AddressSet addressSet = new AddressSet(dsSection.memoryBlock.getAddressRange());
         for (Address address : listing.getCommentAddressIterator(SECTION_COMMENT_TYPE, addressSet, true)) {
             if (!dryRun) {
                 listing.clearComments(address, address.next());
@@ -156,22 +129,20 @@ public class SyncDsd extends GhidraScript {
         }
     }
 
-    private void addSectionComment(DsdSyncSection section, DsAddressSpace codeSpace, DsAddressSpace bssSpace,
-        String moduleName, String fileName
-    ) throws Exception {
-        DsAddressSpace addressSpace = section.getKind().isBss() ? bssSpace : codeSpace;
-        if (addressSpace == null) {
+    private void addSectionComment(DsdSyncBaseSection section, DsModule dsModule, String fileName) throws Exception {
+        DsSection dsSection = dsModule.getSection(section.name.getString());
+        if (dsSection == null) {
             return;
         }
-        Address start = addressSpace.fromAbsolute(section.start_address);
+        Address start = dsSection.getAddress(section.start_address);
         if (start == null) {
-            String error = "Section's address range does not match parent module '" + moduleName + "'\n";
+            String error = "Section's address range does not match parent module '" + dsModule.name + "'\n";
             error += "Section: " + fileName + section.name.getString();
             error += "[" + Integer.toHexString(section.start_address);
             error += ".." + Integer.toHexString(section.end_address) + "]\n";
-            error += "Parent: " + moduleName;
-            error += "[" + Integer.toHexString(addressSpace.minValue);
-            error += ".." + Integer.toHexString(addressSpace.maxValue) + "]\n";
+            error += "Parent: " + dsModule.name + dsSection.name;
+            error += "[" + Integer.toHexString(dsSection.minAddress);
+            error += ".." + Integer.toHexString(dsSection.maxAddress) + "]\n";
             throw new Exception(error);
         }
 
@@ -185,11 +156,11 @@ public class SyncDsd extends GhidraScript {
         }
     }
 
-    private void updateFunction(DsdSyncFunction function, DsAddressSpace codeSpace)
+    private void updateFunction(DsdSyncFunction function, DsSection dsSection)
     throws InvalidInputException, DuplicateNameException, CodeUnitInsertionException, CircularDependencyException,
         OverlappingFunctionException {
 
-        SyncFunction syncFunction = new SyncFunction(currentProgram, codeSpace, function);
+        SyncFunction syncFunction = new SyncFunction(currentProgram, dsSection, function);
 
         Function ghidraFunction = syncFunction.getExistingGhidraFunction();
         if (ghidraFunction == null) {
@@ -201,13 +172,11 @@ public class SyncDsd extends GhidraScript {
             }
         } else {
             if (syncFunction.ghidraFunctionNeedsUpdate(ghidraFunction)) {
-                println(
-                    "Updating function " + syncFunction.symbolName.symbol + " at " + syncFunction.start);
+                println("Updating function " + syncFunction.symbolName.symbol + " at " + syncFunction.start);
                 if (!dryRun) {
                     try {
                         syncFunction.updateGhidraFunction(ghidraFunction);
-                    }
-                    catch(OverlappingFunctionException e) {
+                    } catch (OverlappingFunctionException e) {
                         this.printerr("Failed to update function size: " + e.getMessage());
                     }
                 }
@@ -221,9 +190,9 @@ public class SyncDsd extends GhidraScript {
         }
     }
 
-    private void updateData(DsdSyncDataSymbol dataSymbol, DsAddressSpace addressSpace)
+    private void updateData(DsdSyncDataSymbol dataSymbol, DsSection dsSection)
     throws InvalidInputException, DuplicateNameException {
-        SyncDataSymbol syncDataSymbol = new SyncDataSymbol(currentProgram, addressSpace, dataSymbol);
+        SyncDataSymbol syncDataSymbol = new SyncDataSymbol(currentProgram, dsSection, dataSymbol);
 
         boolean needsUpdate = syncDataSymbol.checkNeedsUpdate();
         String currentName = syncDataSymbol.getCurrentLabel();
@@ -249,8 +218,8 @@ public class SyncDsd extends GhidraScript {
         }
     }
 
-    private void updateReferences(DsdSyncRelocation relocation, DsAddressSpace codeSpace) {
-        SyncRelocation syncRelocation = new SyncRelocation(currentProgram, codeSpace, relocation);
+    private void updateReferences(DsdSyncRelocation relocation, DsSection dsSection) {
+        SyncRelocation syncRelocation = new SyncRelocation(currentProgram, dsSection, relocation);
 
         if (syncRelocation.needsUpdate()) {
             println("Updating references from " + syncRelocation.from);
@@ -264,7 +233,7 @@ public class SyncDsd extends GhidraScript {
         }
 
         if (!dryRun) {
-            syncRelocation.addReferences(this, dsAddressSpaces);
+            syncRelocation.addReferences(this, dsModules);
         }
     }
 }

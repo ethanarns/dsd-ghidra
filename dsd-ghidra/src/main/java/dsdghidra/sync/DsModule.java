@@ -1,5 +1,6 @@
 package dsdghidra.sync;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,12 +17,16 @@ public class DsModule {
         this.sectionMap = new HashMap<>();
     }
 
-    public void add(DsSection section) {
+    public void addSection(DsSection section) {
         sectionMap.put(section.name, section);
     }
 
-    public DsSection get(String name) {
+    public DsSection getSection(String name) {
         return sectionMap.get(name);
+    }
+
+    public Collection<DsSection> getSections() {
+        return sectionMap.values();
     }
 
     public String toString(int indent) {
@@ -41,5 +46,14 @@ public class DsModule {
             pad2 + "sectionMap={\n" + String.join(",\n", sections) + "\n" +
             pad2 + "}\n" +
             pad + "}";
+    }
+
+    public DsSection getSectionContaining(int address) {
+        for (DsSection section : sectionMap.values()) {
+            if (section.contains(address)) {
+                return section;
+            }
+        }
+        return null;
     }
 }

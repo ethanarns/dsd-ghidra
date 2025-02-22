@@ -9,7 +9,7 @@ import java.util.List;
 
 public class DsdSyncDelinkFile extends Structure {
     public UnsafeString name;
-    public UnsafeList<DsdSyncSection> sections;
+    public UnsafeList<DsdSyncBaseSection> sections;
 
     public DsdSyncDelinkFile() {
     }
@@ -24,7 +24,7 @@ public class DsdSyncDelinkFile extends Structure {
         return List.of("name", "sections");
     }
 
-    public DsdSyncSection[] getSections() {
-        return sections.getArray(new DsdSyncSection[0], DsdSyncSection::new);
+    public DsdSyncBaseSection[] getSections() {
+        return sections.getArray(new DsdSyncBaseSection[0], DsdSyncBaseSection::new);
     }
 }

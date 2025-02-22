@@ -110,7 +110,7 @@ public class DsModules {
                 section = new DsSection(DsModule.COMBINED_CODE_KEY, block);
             }
 
-            module.add(section);
+            module.addSection(section);
             blockList.remove(i);
         }
         return module;

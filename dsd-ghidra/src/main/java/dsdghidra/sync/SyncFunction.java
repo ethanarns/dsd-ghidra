@@ -28,13 +28,13 @@ public class SyncFunction {
     public final SymbolName symbolName;
     public final Address start;
     public final Address end;
-    private final DsAddressSpace addressSpace;
+    private final DsSection dsSection;
     private final Program program;
 
-    public SyncFunction(Program program, DsAddressSpace addressSpace, DsdSyncFunction dsdFunction)
+    public SyncFunction(Program program, DsSection dsSection, DsdSyncFunction dsdFunction)
     throws InvalidInputException, DuplicateNameException {
-        Address start = addressSpace.fromAbsolute(dsdFunction.start);
-        Address end = addressSpace.fromAbsolute(dsdFunction.end - 1);
+        Address start = dsSection.getAddress(dsdFunction.start);
+        Address end = dsSection.getAddress(dsdFunction.end - 1);
 
         SymbolName symbolName = new SymbolName(program, dsdFunction.name.getString());
 
@@ -42,15 +42,15 @@ public class SyncFunction {
         this.symbolName = symbolName;
         this.start = start;
         this.end = end;
-        this.addressSpace = addressSpace;
+        this.dsSection = dsSection;
         this.program = program;
     }
 
     public AddressSet getCodeAddressSet() {
         AddressSet codeSet = new AddressSet(start, end);
         for (DsdSyncDataRange dataRange : dsdFunction.getDataRanges()) {
-            Address rangeStart = addressSpace.fromAbsolute(dataRange.start);
-            Address rangeEnd = addressSpace.fromAbsolute(dataRange.end).previous();
+            Address rangeStart = dsSection.getAddress(dataRange.start);
+            Address rangeEnd = dsSection.getAddress(dataRange.end).previous();
             codeSet.deleteRange(rangeStart, rangeEnd);
         }
         return codeSet;
@@ -109,7 +109,7 @@ public class SyncFunction {
         DataType undefined4Type = DataTypeUtil.getUndefined4();
 
         for (int poolConstant : dsdFunction.pool_constants.getArray()) {
-            Address poolAddress = addressSpace.fromAbsolute(poolConstant);
+            Address poolAddress = dsSection.getAddress(poolConstant);
             if (api.getDataAt(poolAddress) == null) {
                 api.createData(poolAddress, undefined4Type);
             }
@@ -141,7 +141,7 @@ public class SyncFunction {
                     if (!Arrays.contains(poolConstants, value)) {
                         continue;
                     }
-                    Address address = addressSpace.fromAbsolute(value);
+                    Address address = dsSection.getAddress(value);
                     api.createMemoryReference(instruction, i, address, RefType.READ);
                 }
             }
