@@ -64,6 +64,7 @@ public class SyncFunction {
     public Function createGhidraFunction(TaskMonitor monitor)
     throws InvalidInputException, DuplicateNameException, CircularDependencyException, OverlappingFunctionException {
         Listing listing = program.getListing();
+        listing.clearCodeUnits(start, start.next(), true);
 
         AddressSet body = this.getCodeAddressSet();
         CreateFunctionCmd createFunctionCmd = new CreateFunctionCmd(symbolName.name, start, body,
