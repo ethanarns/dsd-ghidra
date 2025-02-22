@@ -5,8 +5,6 @@
 //@menupath Analysis.Sync DSD
 //@toolbar sync.png
 
-import dsdghidra.sync.DsAddressSpace;
-import dsdghidra.sync.DsAddressSpaces;
 import dialog.DsdConfigChooser;
 import dsdghidra.DsdGhidra;
 import dsdghidra.sync.*;
@@ -16,7 +14,6 @@ import ghidra.program.model.address.*;
 import ghidra.program.model.lang.Register;
 import ghidra.program.model.listing.*;
 import ghidra.program.model.mem.Memory;
-import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.util.CodeUnitInsertionException;
 import ghidra.util.exception.CancelledException;
 import ghidra.util.exception.DuplicateNameException;

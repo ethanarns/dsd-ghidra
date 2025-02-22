@@ -43,7 +43,7 @@ public class SyncRelocation {
                     }
 
                     String addressSpaceName = reference.getToAddress().getAddressSpace().getName();
-                    int toOverlay = DsAddressSpaces.parseOverlayNumber(addressSpaceName);
+                    int toOverlay = DsModules.parseOverlayNumber(addressSpaceName);
                     boolean found = false;
                     for (short overlay : overlays) {
                         if (toOverlay == overlay) {
@@ -65,7 +65,7 @@ public class SyncRelocation {
                     return true;
                 }
                 String addressSpaceName = references[0].getToAddress().getAddressSpace().getName();
-                return DsAddressSpaces.isMain(addressSpaceName);
+                return DsModules.isMain(addressSpaceName);
             }
             case Itcm -> {
                 if (references.length != 1) {
@@ -75,7 +75,7 @@ public class SyncRelocation {
                     return true;
                 }
                 String addressSpaceName = references[0].getToAddress().getAddressSpace().getName();
-                return DsAddressSpaces.isItcm(addressSpaceName);
+                return DsModules.isItcm(addressSpaceName);
             }
             case Dtcm -> {
                 if (references.length != 1) {
@@ -85,7 +85,7 @@ public class SyncRelocation {
                     return true;
                 }
                 String addressSpaceName = references[0].getToAddress().getAddressSpace().getName();
-                return DsAddressSpaces.isDtcm(addressSpaceName);
+                return DsModules.isDtcm(addressSpaceName);
             }
         }
         throw new MatchException("Unknown relocation type", null);

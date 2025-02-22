@@ -47,15 +47,15 @@ public class DsModules {
         this.overlays = overlayList.toArray(new DsModule[0]);
     }
 
-    private String findAutoload(List<MemoryBlock> blockList) {
+    private static String findAutoload(List<MemoryBlock> blockList) {
         return findBlock(blockList, "autoload_");
     }
 
-    private String findOverlay(List<MemoryBlock> blockList) {
+    private static String findOverlay(List<MemoryBlock> blockList) {
         return findBlock(blockList, "arm9_ov");
     }
 
-    private String findBlock(List<MemoryBlock> blockList, String prefix) {
+    private static String findBlock(List<MemoryBlock> blockList, String prefix) {
         for (MemoryBlock block : blockList) {
             String blockName = block.getName();
             if (!blockName.startsWith(prefix)) {
@@ -72,7 +72,7 @@ public class DsModules {
         return null;
     }
 
-    private int getOverlayId(String moduleName) {
+    private static int getOverlayId(String moduleName) {
         if (!moduleName.startsWith("arm9_ov")) {
             return -1;
         }
@@ -82,7 +82,7 @@ public class DsModules {
         return Integer.parseInt(overlayIdString, 10);
     }
 
-    private int getAutoloadBaseAddress(String moduleName) {
+    private static int getAutoloadBaseAddress(String moduleName) {
         if (!moduleName.startsWith("autoload_")) {
             return -1;
         }
@@ -91,7 +91,7 @@ public class DsModules {
         return Integer.parseInt(addressString, 16);
     }
 
-    private DsModule constructModule(List<MemoryBlock> blockList, String moduleName) {
+    private static DsModule constructModule(List<MemoryBlock> blockList, String moduleName) {
         DsModule module = new DsModule(moduleName);
         for (int i = blockList.size() - 1; i >= 0; i--) {
             MemoryBlock block = blockList.get(i);
@@ -155,5 +155,40 @@ public class DsModules {
             pad2 + "overlays=[\n" + String.join(",\n", overlays) + "\n" +
             pad2 + "]\n" +
             pad + '}';
+    }
+
+    public static boolean isMain(String addressSpaceName) {
+        return addressSpaceName.equals("arm9_main") ||
+            addressSpaceName.equals("arm9_main.bss") ||
+            addressSpaceName.equals("ARM9_Main_Memory") ||
+            addressSpaceName.equals("ARM9_Main_Memory_bss");
+    }
+
+    public static boolean isItcm(String addressSpaceName) {
+        return addressSpaceName.equals("itcm") ||
+            addressSpaceName.equals("ITCM");
+    }
+
+    public static boolean isDtcm(String addressSpaceName) {
+        return addressSpaceName.equals("dtcm") ||
+            addressSpaceName.equals("dtcm.bss") ||
+            addressSpaceName.equals("DTCM") ||
+            addressSpaceName.equals("DTCM_bss");
+    }
+
+    public static int parseOverlayNumber(String blockName) {
+        if (!blockName.startsWith("arm9_ov")) {
+            return -1;
+        }
+
+        int sectionStartIndex = blockName.indexOf('.');
+        String overlayNumberString;
+        if (sectionStartIndex >= 0) {
+            overlayNumberString = blockName.substring(7, sectionStartIndex);
+        } else {
+            overlayNumberString = blockName.substring(7);
+        }
+
+        return Integer.parseInt(overlayNumberString, 10);
     }
 }
