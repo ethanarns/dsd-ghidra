@@ -6,8 +6,8 @@ use ds_decomp::config::{
     delinks::Delinks,
     module::{Module, ModuleKind},
     relocations::{RelocationKind, RelocationModule, Relocations},
-    section::SectionKind,
-    symbol::{SymData, SymbolMap},
+    section::{Section, SectionKind},
+    symbol::{SymData, SymbolKind, SymbolMap},
 };
 use ds_rom::rom::{raw::AutoloadKind, Rom, RomLoadOptions};
 use unarm::arm;
@@ -28,10 +28,6 @@ pub struct SafeDsdSyncModule {
     base_address: u32,
     sections: Vec<SafeDsdSyncSection>,
     files: Vec<SafeDsdSyncDelinkFile>,
-    functions: Vec<SafeDsdSyncFunction>,
-    data_symbols: Vec<SafeDsdSyncDataSymbol>,
-    bss_symbols: Vec<SafeDsdSyncDataSymbol>,
-    relocations: Vec<SafeDsdSyncRelocation>,
 }
 
 pub struct SafeDsdSyncAutoload {
@@ -44,16 +40,23 @@ pub struct SafeDsdSyncOverlay {
     module: SafeDsdSyncModule,
 }
 
-pub struct SafeDsdSyncSection {
+pub struct SafeDsdSyncBaseSection {
     name: String,
     start_address: u32,
     end_address: u32,
     kind: SectionKind,
 }
 
+pub struct SafeDsdSyncSection {
+    base: SafeDsdSyncBaseSection,
+    functions: Vec<SafeDsdSyncFunction>,
+    symbols: Vec<SafeDsdSyncDataSymbol>,
+    relocations: Vec<SafeDsdSyncRelocation>,
+}
+
 pub struct SafeDsdSyncDelinkFile {
     name: String,
-    sections: Vec<SafeDsdSyncSection>,
+    sections: Vec<SafeDsdSyncBaseSection>,
 }
 
 pub struct SafeDsdSyncFunction {
@@ -151,62 +154,8 @@ impl SafeDsdSyncModule {
     ) -> Result<Self> {
         let root_path = root_path.as_ref();
 
-        let delinks = Delinks::from_file(root_path.join(&config_module.delinks), module_kind)?;
-        let sections = delinks
-            .sections
-            .iter()
-            .map(|section| SafeDsdSyncSection {
-                name: section.name().into(),
-                start_address: section.start_address(),
-                end_address: section.end_address(),
-                kind: section.kind(),
-            })
-            .collect::<Vec<_>>();
-        let files = delinks
-            .files
-            .iter()
-            .map(|file| SafeDsdSyncDelinkFile {
-                name: file.name.clone(),
-                sections: file
-                    .sections
-                    .iter()
-                    .map(|section| SafeDsdSyncSection {
-                        name: section.name().into(),
-                        start_address: section.start_address(),
-                        end_address: section.end_address(),
-                        kind: section.kind(),
-                    })
-                    .collect(),
-            })
-            .collect();
-
         let mut symbol_map = SymbolMap::from_file(root_path.join(&config_module.symbols))?;
-
-        let mut data_symbols = vec![];
-        {
-            let mut iter = symbol_map.data_symbols().peekable();
-            while let Some((sym_data, symbol)) = iter.next() {
-                let size = if let Some((_, next_symbol)) = iter.peek() {
-                    next_symbol.addr - symbol.addr
-                } else if let Some((_, section)) = delinks.sections.get_by_contained_address(symbol.addr) {
-                    section.end_address() - symbol.addr
-                } else {
-                    0
-                };
-                let (kind, count) = DsdSyncDataKind::new(&sym_data, size);
-                data_symbols.push(SafeDsdSyncDataSymbol { name: demangle(&symbol.name), address: symbol.addr, kind, count });
-            }
-        }
-        let bss_symbols = symbol_map
-            .bss_symbols()
-            .map(|(sym_bss, symbol)| SafeDsdSyncDataSymbol {
-                name: demangle(&symbol.name),
-                address: symbol.addr,
-                kind: DsdSyncDataKind::Any,
-                count: sym_bss.size.unwrap_or(0),
-            })
-            .collect();
-
+        let delinks = Delinks::from_file(root_path.join(&config_module.delinks), module_kind)?;
         let relocs = Relocations::from_file(root_path.join(&config_module.relocations))?;
 
         let module = match module_kind {
@@ -219,10 +168,159 @@ impl SafeDsdSyncModule {
             }
         }?;
 
+        let sections =
+            module.sections().iter().map(|section| SafeDsdSyncSection::new(section, &module, &symbol_map)).collect::<Vec<_>>();
+
+        let files = delinks
+            .files
+            .iter()
+            .map(|file| SafeDsdSyncDelinkFile {
+                name: file.name.clone(),
+                sections: file.sections.iter().map(SafeDsdSyncBaseSection::new).collect(),
+            })
+            .collect();
+
+        Ok(Self { base_address: module.base_address(), sections, files })
+    }
+}
+
+impl TryIntoUnsafe for SafeDsdSyncModule {
+    type UnsafeType = DsdSyncModule;
+
+    fn try_into_unsafe(self) -> Result<Self::UnsafeType> {
+        Ok(DsdSyncModule {
+            base_address: self.base_address,
+            sections: self.sections.try_into_unsafe()?,
+            files: self.files.try_into_unsafe()?,
+        })
+    }
+}
+
+impl TryIntoUnsafe for SafeDsdSyncAutoload {
+    type UnsafeType = DsdSyncAutoload;
+
+    fn try_into_unsafe(self) -> Result<Self::UnsafeType> {
+        Ok(DsdSyncAutoload { kind: self.kind, module: self.module.try_into_unsafe()? })
+    }
+}
+
+impl TryIntoUnsafe for SafeDsdSyncOverlay {
+    type UnsafeType = DsdSyncOverlay;
+
+    fn try_into_unsafe(self) -> Result<Self::UnsafeType> {
+        Ok(DsdSyncOverlay { id: self.id, module: self.module.try_into_unsafe()? })
+    }
+}
+
+impl SafeDsdSyncBaseSection {
+    pub fn new(section: &Section) -> Self {
+        Self {
+            name: section.name().into(),
+            start_address: section.start_address(),
+            end_address: section.end_address(),
+            kind: section.kind(),
+        }
+    }
+}
+
+impl TryIntoUnsafe for SafeDsdSyncBaseSection {
+    type UnsafeType = DsdSyncBaseSection;
+
+    fn try_into_unsafe(self) -> Result<Self::UnsafeType> {
+        Ok(DsdSyncBaseSection {
+            name: self.name.try_into_unsafe()?,
+            start_address: self.start_address.try_into_unsafe()?,
+            end_address: self.end_address.try_into_unsafe()?,
+            kind: self.kind,
+        })
+    }
+}
+
+impl SafeDsdSyncSection {
+    pub fn new(section: &Section, module: &Module, symbol_map: &SymbolMap) -> Self {
+        let functions = section
+            .functions()
+            .values()
+            .map(|function| {
+                let name = demangle(function.name());
+                let mut data_ranges = vec![];
+                for inline_table in function.inline_tables().values() {
+                    data_ranges
+                        .push(DsdSyncDataRange { start: inline_table.address, end: inline_table.address + inline_table.size });
+                }
+                for &pool_constant in function.pool_constants() {
+                    data_ranges.push(DsdSyncDataRange { start: pool_constant, end: pool_constant + 4 })
+                }
+                for jump_table in function.jump_tables() {
+                    if !jump_table.code {
+                        data_ranges
+                            .push(DsdSyncDataRange { start: jump_table.address, end: jump_table.address + jump_table.size });
+                    }
+                }
+                SafeDsdSyncFunction {
+                    name,
+                    thumb: function.is_thumb(),
+                    start: function.first_instruction_address(),
+                    end: function.end_address(),
+                    data_ranges,
+                    pool_constants: function.pool_constants().iter().copied().collect(),
+                }
+            })
+            .collect();
+
+        let symbols = match section.kind() {
+            SectionKind::Code | SectionKind::Data => {
+                let mut data_symbols = vec![];
+                {
+                    let mut iter =
+                        symbol_map
+                            .iter_by_address(section.address_range())
+                            .filter_map(|symbol| {
+                                if let SymbolKind::Data(sym_data) = symbol.kind {
+                                    Some((sym_data, symbol))
+                                } else {
+                                    None
+                                }
+                            })
+                            .peekable();
+                    while let Some((sym_data, symbol)) = iter.next() {
+                        let size = if let Some((_, next_symbol)) = iter.peek() {
+                            next_symbol.addr - symbol.addr
+                        } else {
+                            section.end_address() - symbol.addr
+                        };
+                        let (kind, count) = DsdSyncDataKind::new(&sym_data, size);
+                        data_symbols.push(SafeDsdSyncDataSymbol {
+                            name: demangle(&symbol.name),
+                            address: symbol.addr,
+                            kind,
+                            count,
+                        });
+                    }
+                }
+                data_symbols
+            }
+            SectionKind::Bss => symbol_map
+                .iter_by_address(section.address_range())
+                .filter_map(|symbol| {
+                    if let SymbolKind::Bss(sym_bss) = symbol.kind {
+                        Some(SafeDsdSyncDataSymbol {
+                            name: demangle(&symbol.name),
+                            address: symbol.addr,
+                            kind: DsdSyncDataKind::Any,
+                            count: sym_bss.size.unwrap_or(0),
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+        };
+
         let relocations = module
             .relocations()
-            .iter()
-            .map(|relocation| {
+            .iter_range(section.address_range())
+            .map(|(_, relocation)| {
                 let (reloc_module, overlays) = match relocation.module() {
                     RelocationModule::None => (DsdSyncRelocationModule::None, vec![]),
                     RelocationModule::Overlay { id } => (DsdSyncRelocationModule::Overlays, vec![*id]),
@@ -254,37 +352,7 @@ impl SafeDsdSyncModule {
             })
             .collect();
 
-        let functions = module
-            .sections()
-            .functions()
-            .map(|function| {
-                let name = demangle(function.name());
-                let mut data_ranges = vec![];
-                for inline_table in function.inline_tables().values() {
-                    data_ranges
-                        .push(DsdSyncDataRange { start: inline_table.address, end: inline_table.address + inline_table.size });
-                }
-                for &pool_constant in function.pool_constants() {
-                    data_ranges.push(DsdSyncDataRange { start: pool_constant, end: pool_constant + 4 })
-                }
-                for jump_table in function.jump_tables() {
-                    if !jump_table.code {
-                        data_ranges
-                            .push(DsdSyncDataRange { start: jump_table.address, end: jump_table.address + jump_table.size });
-                    }
-                }
-                SafeDsdSyncFunction {
-                    name,
-                    thumb: function.is_thumb(),
-                    start: function.first_instruction_address(),
-                    end: function.end_address(),
-                    data_ranges,
-                    pool_constants: function.pool_constants().iter().copied().collect(),
-                }
-            })
-            .collect();
-
-        Ok(Self { base_address: module.base_address(), sections, files, functions, data_symbols, bss_symbols, relocations })
+        Self { base: SafeDsdSyncBaseSection::new(section), functions, symbols, relocations }
     }
 }
 
@@ -299,47 +367,15 @@ fn demangle(s: &str) -> String {
     }
 }
 
-impl TryIntoUnsafe for SafeDsdSyncModule {
-    type UnsafeType = DsdSyncModule;
-
-    fn try_into_unsafe(self) -> Result<Self::UnsafeType> {
-        Ok(DsdSyncModule {
-            base_address: self.base_address,
-            sections: self.sections.try_into_unsafe()?,
-            files: self.files.try_into_unsafe()?,
-            functions: self.functions.try_into_unsafe()?,
-            data_symbols: self.data_symbols.try_into_unsafe()?,
-            bss_symbols: self.bss_symbols.try_into_unsafe()?,
-            relocations: self.relocations.try_into_unsafe()?,
-        })
-    }
-}
-
-impl TryIntoUnsafe for SafeDsdSyncAutoload {
-    type UnsafeType = DsdSyncAutoload;
-
-    fn try_into_unsafe(self) -> Result<Self::UnsafeType> {
-        Ok(DsdSyncAutoload { kind: self.kind, module: self.module.try_into_unsafe()? })
-    }
-}
-
-impl TryIntoUnsafe for SafeDsdSyncOverlay {
-    type UnsafeType = DsdSyncOverlay;
-
-    fn try_into_unsafe(self) -> Result<Self::UnsafeType> {
-        Ok(DsdSyncOverlay { id: self.id, module: self.module.try_into_unsafe()? })
-    }
-}
-
 impl TryIntoUnsafe for SafeDsdSyncSection {
     type UnsafeType = DsdSyncSection;
 
     fn try_into_unsafe(self) -> Result<Self::UnsafeType> {
         Ok(DsdSyncSection {
-            name: self.name.try_into_unsafe()?,
-            start_address: self.start_address,
-            end_address: self.end_address,
-            kind: self.kind,
+            base: self.base.try_into_unsafe()?,
+            functions: self.functions.try_into_unsafe()?,
+            symbols: self.symbols.try_into_unsafe()?,
+            relocations: self.relocations.try_into_unsafe()?,
         })
     }
 }
@@ -412,10 +448,6 @@ pub struct DsdSyncModule {
     base_address: u32,
     sections: UnsafeList<DsdSyncSection>,
     files: UnsafeList<DsdSyncDelinkFile>,
-    functions: UnsafeList<DsdSyncFunction>,
-    data_symbols: UnsafeList<DsdSyncDataSymbol>,
-    bss_symbols: UnsafeList<DsdSyncDataSymbol>,
-    relocations: UnsafeList<DsdSyncRelocation>,
 }
 
 #[repr(C)]
@@ -442,7 +474,7 @@ pub struct DsdSyncOverlay {
 
 #[repr(C)]
 #[derive(Clone)]
-pub struct DsdSyncSection {
+pub struct DsdSyncBaseSection {
     name: UnsafeString,
     start_address: u32,
     end_address: u32,
@@ -451,9 +483,18 @@ pub struct DsdSyncSection {
 
 #[repr(C)]
 #[derive(Clone)]
+pub struct DsdSyncSection {
+    base: DsdSyncBaseSection,
+    functions: UnsafeList<DsdSyncFunction>,
+    symbols: UnsafeList<DsdSyncDataSymbol>,
+    relocations: UnsafeList<DsdSyncRelocation>,
+}
+
+#[repr(C)]
+#[derive(Clone)]
 pub struct DsdSyncDelinkFile {
     name: UnsafeString,
-    sections: UnsafeList<DsdSyncSection>,
+    sections: UnsafeList<DsdSyncBaseSection>,
 }
 
 #[repr(C)]
@@ -533,10 +574,6 @@ impl TryIntoSafe for DsdSyncModule {
             base_address: self.base_address,
             sections: self.sections.try_into_safe()?,
             files: self.files.try_into_safe()?,
-            functions: self.functions.try_into_safe()?,
-            data_symbols: self.data_symbols.try_into_safe()?,
-            bss_symbols: self.bss_symbols.try_into_safe()?,
-            relocations: self.relocations.try_into_safe()?,
         })
     }
 }
@@ -557,15 +594,28 @@ impl TryIntoSafe for DsdSyncOverlay {
     }
 }
 
+impl TryIntoSafe for DsdSyncBaseSection {
+    type SafeType = SafeDsdSyncBaseSection;
+
+    unsafe fn try_into_safe(self) -> Result<Self::SafeType> {
+        Ok(SafeDsdSyncBaseSection {
+            name: self.name.try_into_safe()?,
+            start_address: self.start_address.try_into_safe()?,
+            end_address: self.end_address.try_into_safe()?,
+            kind: self.kind,
+        })
+    }
+}
+
 impl TryIntoSafe for DsdSyncSection {
     type SafeType = SafeDsdSyncSection;
 
     unsafe fn try_into_safe(self) -> Result<Self::SafeType> {
         Ok(SafeDsdSyncSection {
-            name: self.name.try_into_safe()?,
-            start_address: self.start_address,
-            end_address: self.end_address,
-            kind: self.kind,
+            base: self.base.try_into_safe()?,
+            functions: self.functions.try_into_safe()?,
+            symbols: self.symbols.try_into_safe()?,
+            relocations: self.relocations.try_into_safe()?,
         })
     }
 }
