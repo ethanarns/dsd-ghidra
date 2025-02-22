@@ -33,6 +33,7 @@ public class SyncDsd extends GhidraScript {
     private Listing listing;
     private DsAddressSpaces dsAddressSpaces;
     private Register thumbRegister;
+    private DsModules dsModules;
 
     @Override
     public AnalysisMode getScriptAnalysisMode() {
@@ -47,6 +48,8 @@ public class SyncDsd extends GhidraScript {
         this.dsAddressSpaces = new DsAddressSpaces(memoryBlocks);
         ProgramContext programContext = currentProgram.getProgramContext();
         this.thumbRegister = programContext.getRegister("TMode");
+        this.dsModules = new DsModules(memory);
+//        this.println(this.dsModules.toString(0));
 
         DsdConfigChooser dsdConfigChooser = new DsdConfigChooser(null, "Begin sync", propertiesFileParams);
         File file = dsdConfigChooser.getSelectedFile();
