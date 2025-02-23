@@ -7,6 +7,7 @@ import ghidra.framework.plugintool.PluginInfo;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.framework.plugintool.util.PluginStatus;
 import ghidra.program.model.listing.BookmarkManager;
+import ghidra.program.model.listing.BookmarkType;
 
 import javax.swing.*;
 import java.awt.*;
@@ -27,6 +28,9 @@ public class DsdGhidraPlugin extends ProgramPlugin {
     private final Icon sectionIcon;
     private final Icon delinkFileIcon;
 
+    private static BookmarkType BOOKMARK_TYPE_SECTION;
+    private static BookmarkType BOOKMARK_TYPE_DELINK_FILE;
+
     public DsdGhidraPlugin(PluginTool plugintool) {
         super(plugintool);
 
@@ -44,7 +48,19 @@ public class DsdGhidraPlugin extends ProgramPlugin {
         super.init();
 
         BookmarkManager bookmarkManager = currentProgram.getBookmarkManager();
-        bookmarkManager.defineType(SECTION_BOOKMARK, sectionIcon, new Color(0x6abe30), 0);
-        bookmarkManager.defineType(DELINK_FILE_BOOKMARK, delinkFileIcon, new Color(0x0095e9), 0);
+        BOOKMARK_TYPE_SECTION = bookmarkManager.defineType(SECTION_BOOKMARK, sectionIcon, new Color(0x6abe30), 0);
+        BOOKMARK_TYPE_DELINK_FILE = bookmarkManager.defineType(DELINK_FILE_BOOKMARK,
+            delinkFileIcon,
+            new Color(0x0095e9),
+            0
+        );
+    }
+
+    public static BookmarkType getBookmarkTypeSection() {
+        return BOOKMARK_TYPE_SECTION;
+    }
+
+    public static BookmarkType getBookmarkTypeDelinkFile() {
+        return BOOKMARK_TYPE_DELINK_FILE;
     }
 }
