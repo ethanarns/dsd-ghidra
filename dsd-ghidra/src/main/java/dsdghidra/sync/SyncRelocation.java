@@ -43,7 +43,7 @@ public class SyncRelocation {
                     }
 
                     String addressSpaceName = reference.getToAddress().getAddressSpace().getName();
-                    int toOverlay = DsModules.parseOverlayNumber(addressSpaceName);
+                    int toOverlay = parseOverlayNumber(addressSpaceName);
                     boolean found = false;
                     for (short overlay : overlays) {
                         if (toOverlay == overlay) {
@@ -65,7 +65,7 @@ public class SyncRelocation {
                     return true;
                 }
                 String addressSpaceName = references[0].getToAddress().getAddressSpace().getName();
-                return DsModules.isMain(addressSpaceName);
+                return isMain(addressSpaceName);
             }
             case Itcm -> {
                 if (references.length != 1) {
@@ -75,7 +75,7 @@ public class SyncRelocation {
                     return true;
                 }
                 String addressSpaceName = references[0].getToAddress().getAddressSpace().getName();
-                return DsModules.isItcm(addressSpaceName);
+                return isItcm(addressSpaceName);
             }
             case Dtcm -> {
                 if (references.length != 1) {
@@ -85,7 +85,7 @@ public class SyncRelocation {
                     return true;
                 }
                 String addressSpaceName = references[0].getToAddress().getAddressSpace().getName();
-                return DsModules.isDtcm(addressSpaceName);
+                return isDtcm(addressSpaceName);
             }
         }
         throw new MatchException("Unknown relocation type", null);
@@ -141,5 +141,40 @@ public class SyncRelocation {
             api.createData(from, undefined4Type);
         } catch (CodeUnitInsertionException ignore) {
         }
+    }
+
+    private static boolean isMain(String addressSpaceName) {
+        return addressSpaceName.equals("arm9_main") ||
+            addressSpaceName.equals("arm9_main.bss") ||
+            addressSpaceName.equals("ARM9_Main_Memory") ||
+            addressSpaceName.equals("ARM9_Main_Memory_bss");
+    }
+
+    private static boolean isItcm(String addressSpaceName) {
+        return addressSpaceName.equals("itcm") ||
+            addressSpaceName.equals("ITCM");
+    }
+
+    private static boolean isDtcm(String addressSpaceName) {
+        return addressSpaceName.equals("dtcm") ||
+            addressSpaceName.equals("dtcm.bss") ||
+            addressSpaceName.equals("DTCM") ||
+            addressSpaceName.equals("DTCM_bss");
+    }
+
+    private static int parseOverlayNumber(String blockName) {
+        if (!blockName.startsWith("arm9_ov")) {
+            return -1;
+        }
+
+        int sectionStartIndex = blockName.indexOf('.');
+        String overlayNumberString;
+        if (sectionStartIndex >= 0) {
+            overlayNumberString = blockName.substring(7, sectionStartIndex);
+        } else {
+            overlayNumberString = blockName.substring(7);
+        }
+
+        return Integer.parseInt(overlayNumberString, 10);
     }
 }

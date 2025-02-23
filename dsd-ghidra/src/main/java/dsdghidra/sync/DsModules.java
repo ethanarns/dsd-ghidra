@@ -156,39 +156,4 @@ public class DsModules {
             pad2 + "]\n" +
             pad + '}';
     }
-
-    public static boolean isMain(String addressSpaceName) {
-        return addressSpaceName.equals("arm9_main") ||
-            addressSpaceName.equals("arm9_main.bss") ||
-            addressSpaceName.equals("ARM9_Main_Memory") ||
-            addressSpaceName.equals("ARM9_Main_Memory_bss");
-    }
-
-    public static boolean isItcm(String addressSpaceName) {
-        return addressSpaceName.equals("itcm") ||
-            addressSpaceName.equals("ITCM");
-    }
-
-    public static boolean isDtcm(String addressSpaceName) {
-        return addressSpaceName.equals("dtcm") ||
-            addressSpaceName.equals("dtcm.bss") ||
-            addressSpaceName.equals("DTCM") ||
-            addressSpaceName.equals("DTCM_bss");
-    }
-
-    public static int parseOverlayNumber(String blockName) {
-        if (!blockName.startsWith("arm9_ov")) {
-            return -1;
-        }
-
-        int sectionStartIndex = blockName.indexOf('.');
-        String overlayNumberString;
-        if (sectionStartIndex >= 0) {
-            overlayNumberString = blockName.substring(7, sectionStartIndex);
-        } else {
-            overlayNumberString = blockName.substring(7);
-        }
-
-        return Integer.parseInt(overlayNumberString, 10);
-    }
 }
