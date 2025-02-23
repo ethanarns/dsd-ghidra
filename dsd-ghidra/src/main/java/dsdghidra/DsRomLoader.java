@@ -33,12 +33,9 @@ import ghidra.app.util.opinion.LoadSpec;
 import ghidra.framework.model.DomainObject;
 import ghidra.framework.store.LockException;
 import ghidra.program.flatapi.FlatProgramAPI;
-import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressOverflowException;
 import ghidra.program.model.lang.LanguageCompilerSpecPair;
 import ghidra.program.model.listing.Program;
-import ghidra.program.model.mem.Memory;
-import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.mem.MemoryConflictException;
 import ghidra.util.exception.CancelledException;
 import ghidra.util.task.TaskMonitor;
@@ -176,14 +173,3 @@ public class DsRomLoader extends AbstractProgramWrapperLoader {
     }
 }
 
-class CreateMemoryBlockFailedException extends Exception {
-    public CreateMemoryBlockFailedException(String message) {
-        super(message);
-    }
-}
-
-class CreateLabelFailedException extends Exception {
-    public CreateLabelFailedException(String message) {
-        super(message);
-    }
-}
