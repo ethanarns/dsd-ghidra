@@ -57,7 +57,7 @@ public class SyncSection {
     throws Exception {
         Listing listing = program.getListing();
 
-        DsSection dsSection = dsModule.getSection(dsdSection.base.name.getString());
+        DsSection dsSection = dsModule.getSection(dsdSection.base);
         if (dsSection == null) {
             return;
         }

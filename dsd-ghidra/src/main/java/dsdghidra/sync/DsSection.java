@@ -20,8 +20,8 @@ public class DsSection {
         this.name = name;
         this.memoryBlock = memoryBlock;
         this.addressSpace = memoryBlock.getAddressRange().getAddressSpace();
-        this.minAddress = (int) this.addressSpace.getMinAddress().getOffset();
-        this.maxAddress = (int) this.addressSpace.getMaxAddress().getOffset();
+        this.minAddress = (int) memoryBlock.getStart().getOffset();
+        this.maxAddress = (int) memoryBlock.getEnd().getOffset();
     }
 
     public String toString() {

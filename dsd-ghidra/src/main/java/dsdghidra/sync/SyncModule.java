@@ -27,7 +27,7 @@ public class SyncModule {
         }
 
         for (DsdSyncSection dsdSyncSection : dsdSyncSections) {
-            DsSection dsSection = dsModule.getSection(dsdSyncSection.base.name.getString());
+            DsSection dsSection = dsModule.getSection(dsdSyncSection.base);
             if (dsSection == null) {
                 return true;
             }

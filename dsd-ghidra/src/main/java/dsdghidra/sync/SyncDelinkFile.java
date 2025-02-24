@@ -32,9 +32,9 @@ public class SyncDelinkFile {
         String category = getBookmarkCategory();
 
         for (DsdSyncBaseSection section : dsdDelinkFile.getSections()) {
-            String sectionName = section.name.getString();
-            DsSection dsSection = dsModule.getSection(sectionName);
+            DsSection dsSection = dsModule.getSection(section);
             Address address = dsSection.getAddress(section.start_address);
+            String sectionName = section.name.getString();
             String comment =getBookmarkComment(sectionName);
 
             bookmarkManager.setBookmark(address, sectionBookmark.getTypeString(), category, comment);

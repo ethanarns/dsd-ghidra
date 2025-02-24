@@ -22,6 +22,7 @@ import ghidra.util.task.TaskMonitor;
 import org.bouncycastle.util.Arrays;
 
 import java.math.BigInteger;
+import java.util.Objects;
 
 public class SyncFunction {
     public final DsdSyncFunction dsdFunction;
@@ -35,6 +36,9 @@ public class SyncFunction {
     throws InvalidInputException, DuplicateNameException {
         Address start = dsSection.getAddress(dsdFunction.start);
         Address end = dsSection.getAddress(dsdFunction.end - 1);
+
+        Objects.requireNonNull(start);
+        Objects.requireNonNull(end);
 
         SymbolName symbolName = new SymbolName(program, dsdFunction.name.getString());
 

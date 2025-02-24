@@ -111,7 +111,7 @@ public class SyncDsd extends GhidraScript {
         this.updateModule(dsdSyncModule, dsModule);
 
         for (DsdSyncSection section : dsdSyncModule.getSections()) {
-            DsSection dsSection = dsModule.getSection(section.base.name.getString());
+            DsSection dsSection = dsModule.getSection(section.base);
 
             this.updateSection(section, dsModule, dsSection);
             for (DsdSyncFunction function : section.getFunctions()) {

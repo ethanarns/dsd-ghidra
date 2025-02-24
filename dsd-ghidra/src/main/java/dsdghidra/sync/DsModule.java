@@ -25,8 +25,23 @@ public class DsModule {
         sectionMap.put(section.getName(), section);
     }
 
-    public DsSection getSection(String name) {
+    private DsSection getSection(String name) {
         return sectionMap.get(name);
+    }
+
+    public DsSection getSection(DsdSyncBaseSection section) {
+        if (isSplit()) {
+            return getSection(section.name.getString());
+        }
+        switch (section.getKind()) {
+            case Code, Data -> {
+                return getSection(COMBINED_CODE_KEY);
+            }
+            case Bss -> {
+                return getSection(COMBINED_BSS_KEY);
+            }
+        }
+        return null;
     }
 
     public Collection<DsSection> getSections() {
