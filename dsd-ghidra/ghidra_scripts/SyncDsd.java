@@ -10,14 +10,17 @@ import dsdghidra.DsdGhidra;
 import dsdghidra.DsdGhidraPlugin;
 import dsdghidra.sync.*;
 import ghidra.app.script.GhidraScript;
+import ghidra.framework.store.LockException;
 import ghidra.program.database.function.OverlappingFunctionException;
 import ghidra.program.model.lang.Register;
 import ghidra.program.model.listing.*;
 import ghidra.program.model.mem.Memory;
+import ghidra.program.model.mem.MemoryBlockException;
 import ghidra.program.model.util.CodeUnitInsertionException;
 import ghidra.util.exception.CancelledException;
 import ghidra.util.exception.DuplicateNameException;
 import ghidra.util.exception.InvalidInputException;
+import ghidra.util.exception.NotFoundException;
 
 import java.io.File;
 import java.io.IOException;
@@ -105,6 +108,8 @@ public class SyncDsd extends GhidraScript {
 
     private void syncModule(DsdSyncModule dsdSyncModule, DsModule dsModule)
     throws Exception {
+        this.updateModule(dsdSyncModule, dsModule);
+
         for (DsdSyncSection section : dsdSyncModule.getSections()) {
             DsSection dsSection = dsModule.getSection(section.base.name.getString());
 
@@ -121,6 +126,19 @@ public class SyncDsd extends GhidraScript {
         }
         for (DsdSyncDelinkFile file : dsdSyncModule.getFiles()) {
             this.updateDelinkFile(file, dsModule);
+        }
+    }
+
+    private void updateModule(DsdSyncModule module, DsModule dsModule)
+    throws LockException, MemoryBlockException, NotFoundException {
+        SyncModule syncModule = new SyncModule(currentProgram, module, dsModule);
+
+        if (syncModule.needsUpdate()) {
+            this.println("Updating sections in module '" + dsModule.name + "'");
+            if (!dryRun) {
+                syncModule.join();
+                syncModule.split();
+            }
         }
     }
 

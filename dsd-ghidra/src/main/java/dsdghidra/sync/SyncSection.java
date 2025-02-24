@@ -29,7 +29,7 @@ public class SyncSection {
     public void removeComments() {
         Listing listing = program.getListing();
 
-        AddressSet addressSet = new AddressSet(dsSection.memoryBlock.getAddressRange());
+        AddressSet addressSet = new AddressSet(dsSection.getMemoryBlock().getAddressRange());
         for (Address address : listing.getCommentAddressIterator(SECTION_COMMENT_TYPE, addressSet, true)) {
             String comment = listing.getComment(SECTION_COMMENT_TYPE, address);
             if (!comment.startsWith(SECTION_COMMENT_START)) {
@@ -67,9 +67,9 @@ public class SyncSection {
             error += "Section: " + fileName + dsdSection.base.name.getString();
             error += "[" + Integer.toHexString(dsdSection.base.start_address);
             error += ".." + Integer.toHexString(dsdSection.base.end_address) + "]\n";
-            error += "Parent: " + dsModule.name + dsSection.name;
-            error += "[" + Integer.toHexString(dsSection.minAddress);
-            error += ".." + Integer.toHexString(dsSection.maxAddress) + "]\n";
+            error += "Parent: " + dsModule.name + dsSection.getName();
+            error += "[" + Integer.toHexString(dsSection.getMinAddress());
+            error += ".." + Integer.toHexString(dsSection.getMaxAddress()) + "]\n";
             throw new Exception(error);
         }
 
@@ -84,7 +84,7 @@ public class SyncSection {
     }
 
     public Address getBookmarkAddress() {
-        return dsSection.getAddress(dsSection.minAddress);
+        return dsSection.getAddress(dsSection.getMinAddress());
     }
 
     private String getBookmarkCategory() {
@@ -92,7 +92,7 @@ public class SyncSection {
     }
 
     private String getBookmarkComment() {
-        return dsSection.name;
+        return dsSection.getName();
     }
 
     public void addBookmark() {
