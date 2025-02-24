@@ -54,7 +54,7 @@ public class SyncFunction {
         AddressSet codeSet = new AddressSet(start, end);
         for (DsdSyncDataRange dataRange : dsdFunction.getDataRanges()) {
             Address rangeStart = dsSection.getAddress(dataRange.start);
-            Address rangeEnd = dsSection.getAddress(dataRange.end).previous();
+            Address rangeEnd = dsSection.getAddress(dataRange.end - 1);
             codeSet.deleteRange(rangeStart, rangeEnd);
         }
         return codeSet;
