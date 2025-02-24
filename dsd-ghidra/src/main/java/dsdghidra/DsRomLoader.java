@@ -171,5 +171,17 @@ public class DsRomLoader extends AbstractProgramWrapperLoader {
     public String validateOptions(ByteProvider provider, LoadSpec loadSpec, List<Option> options, Program program) {
         return super.validateOptions(provider, loadSpec, options, program);
     }
+
+    private static class CreateLabelFailedException extends Exception {
+        public CreateLabelFailedException(String message) {
+            super(message);
+        }
+    }
+
+    private static class CreateMemoryBlockFailedException extends Exception {
+        public CreateMemoryBlockFailedException(String message) {
+            super(message);
+        }
+    }
 }
 
