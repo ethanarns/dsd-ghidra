@@ -111,6 +111,10 @@ public class SyncDsd extends GhidraScript {
         this.updateModule(dsdSyncModule, dsModule);
 
         for (DsdSyncSection section : dsdSyncModule.getSections()) {
+            if (section.base.isEmpty()) {
+                continue;
+            }
+
             DsSection dsSection = dsModule.getSection(section.base);
 
             this.updateSection(section, dsModule, dsSection);

@@ -30,4 +30,8 @@ public class DsdSyncBaseSection extends Structure {
     public SectionKind getKind() {
         return SectionKind.VALUES[kind];
     }
+
+    public boolean isEmpty() {
+        return start_address == end_address;
+    }
 }
