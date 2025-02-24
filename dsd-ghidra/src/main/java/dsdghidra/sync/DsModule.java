@@ -80,6 +80,10 @@ public class DsModule {
 
     private void splitSection(Program program, DsSection section, List<DsdSyncSection> dsdSections)
     throws LockException, MemoryBlockException, NotFoundException {
+        if (section == null) {
+            return;
+        }
+
         Memory memory = program.getMemory();
 
         DsSection sectionToSplit = section;
@@ -128,6 +132,10 @@ public class DsModule {
     private void joinSection(Program program, List<DsSection> dsSections, String combinedName)
     throws LockException, MemoryBlockException, NotFoundException {
         Memory memory = program.getMemory();
+
+        if (dsSections.isEmpty()) {
+            return;
+        }
 
         DsSection sectionToJoin = dsSections.getFirst();
 
