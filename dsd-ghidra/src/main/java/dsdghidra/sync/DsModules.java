@@ -105,9 +105,9 @@ public class DsModules {
             int sectionStartIndex = blockName.indexOf('.');
             if (sectionStartIndex >= 0) {
                 String sectionName = blockName.substring(sectionStartIndex);
-                section = new DsSection(sectionName, block);
+                section = new DsSection(sectionName, module, block);
             } else {
-                section = new DsSection(DsModule.COMBINED_CODE_KEY, block);
+                section = new DsSection(DsModule.COMBINED_CODE_KEY, module, block);
             }
 
             module.addSection(section);

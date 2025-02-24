@@ -11,13 +11,15 @@ import org.hyperic.sigar.Mem;
 
 public class DsSection {
     private String name;
+    private final DsModule module;
     private MemoryBlock memoryBlock;
     public final AddressSpace addressSpace;
     private int minAddress;
     private int maxAddress;
 
-    public DsSection(String name, MemoryBlock memoryBlock) {
+    public DsSection(String name, DsModule module, MemoryBlock memoryBlock) {
         this.name = name;
+        this.module = module;
         this.memoryBlock = memoryBlock;
         this.addressSpace = memoryBlock.getAddressRange().getAddressSpace();
         this.minAddress = (int) memoryBlock.getStart().getOffset();
@@ -50,7 +52,7 @@ public class DsSection {
 
         String name = memoryBlock.getName() + ".split";
         MemoryBlock splitBlock = memory.getBlock(name);
-        return new DsSection(name, splitBlock);
+        return new DsSection(name, module, splitBlock);
     }
 
     public void join(Memory memory, DsSection section)
@@ -69,8 +71,10 @@ public class DsSection {
         return name;
     }
 
-    public void setName(String name) {
+    public void setName(String name)
+    throws LockException {
         this.name = name;
+        this.memoryBlock.setName(module.name + name);
     }
 
     public MemoryBlock getMemoryBlock() {
