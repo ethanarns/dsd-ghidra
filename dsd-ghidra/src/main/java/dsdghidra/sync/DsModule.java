@@ -94,13 +94,14 @@ public class DsModule {
             DsSection splitSection = sectionToSplit.split(memory, nextDsdSection.base.start_address);
             sectionToSplit.setName(dsdSection.base.name.getString());
             // TODO: Set RWX flags
-            sectionToSplit = splitSection;
 
-            addSection(splitSection);
+            addSection(sectionToSplit);
+            sectionToSplit = splitSection;
         }
 
         DsdSyncSection lastDsdSection = dsdSections.getLast();
         sectionToSplit.setName(lastDsdSection.base.name.getString());
+        addSection(sectionToSplit);
     }
 
     public void join(Program program)
