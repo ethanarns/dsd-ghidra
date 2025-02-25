@@ -33,7 +33,7 @@ public class DsSection {
     }
 
     public Address getAddress(int offset) {
-        if (offset < minAddress || offset >= maxAddress) {
+        if (offset < minAddress || offset > maxAddress) {
             return null;
         }
         return addressSpace.getAddress(offset);
@@ -97,7 +97,8 @@ public class DsSection {
         if (minAddress != dsdSyncSection.base.start_address) {
             return false;
         }
-        if (maxAddress != dsdSyncSection.base.end_address) {
+        if (maxAddress + 1 < dsdSyncSection.base.end_address) {
+            // Max address is allowed to be greater than dsd's end_address because of alignment
             return false;
         }
 
