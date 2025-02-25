@@ -64,7 +64,7 @@ public class DsModules {
 
             int sectionStartIndex = blockName.indexOf('.');
             if (sectionStartIndex >= 0) {
-                return blockName.substring(sectionStartIndex);
+                return blockName.substring(0, sectionStartIndex);
             }
 
             return blockName;
@@ -78,7 +78,7 @@ public class DsModules {
         }
 
         String overlayIdString = moduleName.substring(7);
-        ;
+
         return Integer.parseInt(overlayIdString, 10);
     }
 
