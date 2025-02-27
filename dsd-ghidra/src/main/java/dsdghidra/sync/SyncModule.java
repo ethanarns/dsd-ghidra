@@ -5,6 +5,9 @@ import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.MemoryBlockException;
 import ghidra.util.exception.NotFoundException;
 
+import java.util.Arrays;
+import java.util.List;
+
 public class SyncModule {
     private final Program program;
     private final DsdSyncModule dsdModule;
@@ -21,14 +24,18 @@ public class SyncModule {
             return true;
         }
 
-        DsdSyncSection[] dsdSyncSections = dsdModule.getSections();
-        if (dsModule.getSections().size() != dsdSyncSections.length) {
+        List<DsdSyncSection> dsdSyncSections = Arrays
+            .stream(dsdModule.getSections())
+            .filter(module -> !module.base.isEmpty())
+            .toList();
+        if (dsModule.getSections().size() != dsdSyncSections.size()) {
             return true;
         }
 
         for (DsdSyncSection dsdSyncSection : dsdSyncSections) {
             DsSection dsSection = dsModule.getSection(dsdSyncSection.base);
             if (dsSection == null) {
+                System.out.println(dsdSyncSection.base.name.getString() + " does not exist");
                 return true;
             }
             if (!dsSection.matches(dsdSyncSection)) {
