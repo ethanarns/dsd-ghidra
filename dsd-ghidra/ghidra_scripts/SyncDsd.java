@@ -116,6 +116,9 @@ public class SyncDsd extends GhidraScript {
             }
 
             DsSection dsSection = dsModule.getSection(section.base);
+            if (dsSection == null) {
+                throw new Exception("Failed to find section '" + section.base.name.getString() + "' in module '" + dsModule.name + "'");
+            }
 
             this.updateSection(section, dsModule, dsSection);
             for (DsdSyncFunction function : section.getFunctions()) {
