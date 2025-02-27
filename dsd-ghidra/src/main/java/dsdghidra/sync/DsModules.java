@@ -112,9 +112,20 @@ public class DsModules {
             MemoryBlock block = blockList.get(i);
             String blockName = block.getName();
 
+            int sectionStartIndex = blockName.indexOf('.');
+            String blockBaseName;
+            String sectionName;
+            if (sectionStartIndex >= 0) {
+                blockBaseName = blockName.substring(0, sectionStartIndex);
+                sectionName = blockName.substring(sectionStartIndex);
+            } else {
+                blockBaseName = blockName;
+                sectionName = DsModule.COMBINED_CODE_KEY;
+            }
+
             boolean found = false;
             for (String moduleName : moduleNames) {
-                if (blockName.startsWith(moduleName)) {
+                if (blockBaseName.equals(moduleName)) {
                     found = true;
                     break;
                 }
@@ -123,15 +134,7 @@ public class DsModules {
                 continue;
             }
 
-            DsSection section;
-            int sectionStartIndex = blockName.indexOf('.');
-            if (sectionStartIndex >= 0) {
-                String sectionName = blockName.substring(sectionStartIndex);
-                section = new DsSection(sectionName, module, block);
-            } else {
-                section = new DsSection(DsModule.COMBINED_CODE_KEY, module, block);
-            }
-
+            DsSection section = new DsSection(sectionName, module, block);
             module.addSection(section);
             blockList.remove(i);
         }
