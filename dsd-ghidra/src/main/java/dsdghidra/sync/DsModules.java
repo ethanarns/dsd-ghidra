@@ -16,9 +16,9 @@ public class DsModules {
         List<MemoryBlock> blockList = new ArrayList<>();
         Collections.addAll(blockList, memory.getBlocks());
 
-        DsModule main = constructModule(blockList, "arm9_main");
-        DsModule itcm = constructModule(blockList, "itcm");
-        DsModule dtcm = constructModule(blockList, "dtcm");
+        DsModule main = constructModule(blockList, "arm9_main", "ARM9_Main_Memory");
+        DsModule itcm = constructModule(blockList, "itcm", "ITCM");
+        DsModule dtcm = constructModule(blockList, "dtcm", "DTCM");
 
         List<DsModule> overlayList = new ArrayList<>();
         String overlayModuleName;
@@ -52,13 +52,21 @@ public class DsModules {
     }
 
     private static String findOverlay(List<MemoryBlock> blockList) {
-        return findBlock(blockList, "arm9_ov");
+        return findBlock(blockList, "arm9_ov", "overlay_d_", "overlay_");
     }
 
-    private static String findBlock(List<MemoryBlock> blockList, String prefix) {
+    private static String findBlock(List<MemoryBlock> blockList, String... prefixes) {
         for (MemoryBlock block : blockList) {
             String blockName = block.getName();
-            if (!blockName.startsWith(prefix)) {
+
+            boolean found = false;
+            for (String prefix : prefixes) {
+                if (blockName.startsWith(prefix)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
                 continue;
             }
 
@@ -73,11 +81,18 @@ public class DsModules {
     }
 
     private static int getOverlayId(String moduleName) {
-        if (!moduleName.startsWith("arm9_ov")) {
-            return -1;
+        String overlayIdString = null;
+        if (moduleName.startsWith("arm9_ov")) {
+            overlayIdString = moduleName.substring(7);
+        } else if (moduleName.startsWith("overlay_d_")) {
+            overlayIdString = moduleName.substring(10);
+        } else if (moduleName.startsWith("overlay_")) {
+            overlayIdString = moduleName.substring(8);
         }
 
-        String overlayIdString = moduleName.substring(7);
+        if (overlayIdString == null) {
+            return -1;
+        }
 
         return Integer.parseInt(overlayIdString, 10);
     }
@@ -91,13 +106,20 @@ public class DsModules {
         return Integer.parseInt(addressString, 16);
     }
 
-    private static DsModule constructModule(List<MemoryBlock> blockList, String moduleName) {
-        DsModule module = new DsModule(moduleName);
+    private static DsModule constructModule(List<MemoryBlock> blockList, String... moduleNames) {
+        DsModule module = new DsModule(moduleNames[0]);
         for (int i = blockList.size() - 1; i >= 0; i--) {
             MemoryBlock block = blockList.get(i);
             String blockName = block.getName();
 
-            if (!blockName.startsWith(moduleName)) {
+            boolean found = false;
+            for (String moduleName : moduleNames) {
+                if (blockName.startsWith(moduleName)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
                 continue;
             }
 
