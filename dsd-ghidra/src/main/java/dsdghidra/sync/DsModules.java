@@ -80,7 +80,7 @@ public class DsModules {
         return null;
     }
 
-    private static int getOverlayId(String moduleName) {
+    public static int getOverlayId(String moduleName) {
         String overlayIdString = null;
         if (moduleName.startsWith("arm9_ov")) {
             overlayIdString = moduleName.substring(7);

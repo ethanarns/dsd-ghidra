@@ -147,7 +147,7 @@ public class SyncRelocation {
         return addressSpaceName.equals("arm9_main") ||
             addressSpaceName.equals("arm9_main.bss") ||
             addressSpaceName.equals("ARM9_Main_Memory") ||
-            addressSpaceName.equals("ARM9_Main_Memory_bss");
+            addressSpaceName.equals("ARM9_Main_Memory.bss");
     }
 
     private static boolean isItcm(String addressSpaceName) {
@@ -159,22 +159,14 @@ public class SyncRelocation {
         return addressSpaceName.equals("dtcm") ||
             addressSpaceName.equals("dtcm.bss") ||
             addressSpaceName.equals("DTCM") ||
-            addressSpaceName.equals("DTCM_bss");
+            addressSpaceName.equals("DTCM.bss");
     }
 
     private static int parseOverlayNumber(String blockName) {
-        if (!blockName.startsWith("arm9_ov")) {
-            return -1;
-        }
-
         int sectionStartIndex = blockName.indexOf('.');
-        String overlayNumberString;
         if (sectionStartIndex >= 0) {
-            overlayNumberString = blockName.substring(7, sectionStartIndex);
-        } else {
-            overlayNumberString = blockName.substring(7);
+            blockName = blockName.substring(0, sectionStartIndex);
         }
-
-        return Integer.parseInt(overlayNumberString, 10);
+        return DsModules.getOverlayId(blockName);
     }
 }
