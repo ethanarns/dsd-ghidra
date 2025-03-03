@@ -268,39 +268,32 @@ impl SafeDsdSyncSection {
             })
             .collect();
 
-        let symbols = match section.kind() {
-            SectionKind::Code | SectionKind::Data => {
-                let mut data_symbols = vec![];
-                {
-                    let mut iter =
-                        symbol_map
-                            .iter_by_address(section.address_range())
-                            .filter_map(|symbol| {
-                                if let SymbolKind::Data(sym_data) = symbol.kind {
-                                    Some((sym_data, symbol))
-                                } else {
-                                    None
-                                }
-                            })
-                            .peekable();
-                    while let Some((sym_data, symbol)) = iter.next() {
-                        let size = if let Some((_, next_symbol)) = iter.peek() {
-                            next_symbol.addr - symbol.addr
+        let symbols = if section.kind().is_initialized() {
+            let mut data_symbols = vec![];
+            let mut iter = symbol_map
+                .iter_by_address(section.address_range())
+                .filter_map(
+                    |symbol| {
+                        if let SymbolKind::Data(sym_data) = symbol.kind {
+                            Some((sym_data, symbol))
                         } else {
-                            section.end_address() - symbol.addr
-                        };
-                        let (kind, count) = DsdSyncDataKind::new(&sym_data, size);
-                        data_symbols.push(SafeDsdSyncDataSymbol {
-                            name: demangle(&symbol.name),
-                            address: symbol.addr,
-                            kind,
-                            count,
-                        });
-                    }
-                }
-                data_symbols
+                            None
+                        }
+                    },
+                )
+                .peekable();
+            while let Some((sym_data, symbol)) = iter.next() {
+                let size = if let Some((_, next_symbol)) = iter.peek() {
+                    next_symbol.addr - symbol.addr
+                } else {
+                    section.end_address() - symbol.addr
+                };
+                let (kind, count) = DsdSyncDataKind::new(&sym_data, size);
+                data_symbols.push(SafeDsdSyncDataSymbol { name: demangle(&symbol.name), address: symbol.addr, kind, count });
             }
-            SectionKind::Bss => symbol_map
+            data_symbols
+        } else {
+            symbol_map
                 .iter_by_address(section.address_range())
                 .filter_map(|symbol| {
                     if let SymbolKind::Bss(sym_bss) = symbol.kind {
@@ -314,7 +307,7 @@ impl SafeDsdSyncSection {
                         None
                     }
                 })
-                .collect(),
+                .collect()
         };
 
         let relocations = module
