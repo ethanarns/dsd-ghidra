@@ -102,8 +102,12 @@ public class SyncDsd extends GhidraScript {
         BookmarkType sectionBookmark = DsdGhidraPlugin.getBookmarkTypeSection();
         BookmarkType delinkFileBookmark = DsdGhidraPlugin.getBookmarkTypeDelinkFile();
 
-        bookmarkManager.removeBookmarks(sectionBookmark.getTypeString());
-        bookmarkManager.removeBookmarks(delinkFileBookmark.getTypeString());
+        if (sectionBookmark != null) {
+            bookmarkManager.removeBookmarks(sectionBookmark.getTypeString());
+        }
+        if (delinkFileBookmark != null) {
+            bookmarkManager.removeBookmarks(delinkFileBookmark.getTypeString());
+        }
     }
 
     private void syncModule(DsdSyncModule dsdSyncModule, DsModule dsModule)

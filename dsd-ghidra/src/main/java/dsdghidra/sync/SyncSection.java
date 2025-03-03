@@ -98,6 +98,9 @@ public class SyncSection {
     public void addBookmark() {
         BookmarkManager bookmarkManager = program.getBookmarkManager();
         BookmarkType sectionBookmark = DsdGhidraPlugin.getBookmarkTypeSection();
+        if (sectionBookmark == null) {
+            return;
+        }
 
         Address address = getBookmarkAddress();
         String category = getBookmarkCategory();

@@ -27,7 +27,10 @@ public class SyncDelinkFile {
 
     public void addBookmarks() {
         BookmarkManager bookmarkManager = program.getBookmarkManager();
-        BookmarkType sectionBookmark = DsdGhidraPlugin.getBookmarkTypeSection();
+        BookmarkType delinkFileBookmark = DsdGhidraPlugin.getBookmarkTypeDelinkFile();
+        if (delinkFileBookmark == null) {
+            return;
+        }
 
         String category = getBookmarkCategory();
 
@@ -35,9 +38,9 @@ public class SyncDelinkFile {
             DsSection dsSection = dsModule.getSection(section);
             Address address = dsSection.getAddress(section.start_address);
             String sectionName = section.name.getString();
-            String comment =getBookmarkComment(sectionName);
+            String comment = getBookmarkComment(sectionName);
 
-            bookmarkManager.setBookmark(address, sectionBookmark.getTypeString(), category, comment);
+            bookmarkManager.setBookmark(address, delinkFileBookmark.getTypeString(), category, comment);
         }
     }
 }
