@@ -1,5 +1,6 @@
 package dsdghidra.sync;
 
+import dsdghidra.dsd.SectionKind;
 import ghidra.framework.store.LockException;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressSpace;
@@ -7,7 +8,6 @@ import ghidra.program.model.mem.Memory;
 import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.mem.MemoryBlockException;
 import ghidra.util.exception.NotFoundException;
-import org.hyperic.sigar.Mem;
 
 public class DsSection {
     private String name;
@@ -57,7 +57,7 @@ public class DsSection {
 
     public void join(Memory memory, DsSection section)
     throws LockException, MemoryBlockException, NotFoundException {
-        if (maxAddress != section.minAddress) {
+        if (maxAddress + 1 != section.minAddress) {
             throw new MemoryBlockException("Sections are not contiguous");
         }
 
@@ -102,7 +102,26 @@ public class DsSection {
             return false;
         }
 
-        // TODO: Check RWX flags
+        SectionKind sectionKind = dsdSyncSection.base.getKind();
+        if (memoryBlock.isWrite() != sectionKind.isWriteable()) {
+            return false;
+        }
+        if (memoryBlock.isExecute() != sectionKind.isExecutable()) {
+            return false;
+        }
+
         return true;
+    }
+
+    public void setRwxFlags(SectionKind kind) {
+        memoryBlock.setWrite(kind.isWriteable());
+        memoryBlock.setExecute(kind.isExecutable());
+    }
+
+    public void resetRwxFlags() {
+        memoryBlock.setWrite(true);
+        if (memoryBlock.isInitialized()) {
+            memoryBlock.setExecute(true);
+        }
     }
 }

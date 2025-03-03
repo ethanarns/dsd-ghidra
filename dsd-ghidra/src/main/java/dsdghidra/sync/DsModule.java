@@ -65,9 +65,10 @@ public class DsModule {
         List<DsdSyncSection> dsdBssSections = new ArrayList<>();
 
         for (DsdSyncSection section : dsdModule.getSections()) {
-            switch (section.base.getKind()) {
-                case Code, Data -> dsdCodeSections.add(section);
-                case Bss -> dsdBssSections.add(section);
+            if (section.base.getKind().isBss()) {
+                dsdBssSections.add(section);
+            } else {
+                dsdCodeSections.add(section);
             }
         }
 
@@ -93,7 +94,7 @@ public class DsModule {
 
             DsSection splitSection = sectionToSplit.split(memory, nextDsdSection.base.start_address);
             sectionToSplit.setName(dsdSection.base.name.getString());
-            // TODO: Set RWX flags
+            sectionToSplit.setRwxFlags(dsdSection.base.getKind());
 
             addSection(sectionToSplit);
             sectionToSplit = splitSection;
@@ -101,6 +102,7 @@ public class DsModule {
 
         DsdSyncSection lastDsdSection = dsdSections.getLast();
         sectionToSplit.setName(lastDsdSection.base.name.getString());
+        sectionToSplit.setRwxFlags(lastDsdSection.base.getKind());
         addSection(sectionToSplit);
     }
 
@@ -146,7 +148,7 @@ public class DsModule {
         }
 
         sectionToJoin.setName(combinedName);
-        // TODO: Enable all RWX flags
+        sectionToJoin.resetRwxFlags();
         addSection(sectionToJoin);
     }
 
