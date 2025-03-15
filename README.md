@@ -4,7 +4,8 @@ Ghidra loader and scripts for DS decompilation projects, powered by [`dsd`](http
 ## Contents
 - [Installation](#installation)
 - [Usage](#usage)
-- [How to build](#how-to-build)
+- [How to build (Windows + IntelliJ)](#how-to-build-windows--intellij)
+- [How to build (Linux + Eclipse)](#how-to-build-linux--eclipse)
 
 ## Installation
 1. [Download the latest release](https://github.com/AetiasHax/dsd-ghidra/releases/latest)
@@ -25,10 +26,6 @@ You can load a DS game by dropping a DS ROM file into the Ghidra project window,
 You can synchronize your Ghidra program with a dsd configuration by running the `SyncDsd.java` script in the Script Manager. The script can also be added to the toolbar by checking the "In Tool" checkbox.
 
 ## How to build (Windows + IntelliJ)
-
-> [!NOTE]
-> The following instructions assume you are using a Windows machine and have installed IntelliJ. Feel free to contribute build
-> instructions for other systems and IDEs!
 
 1. Build the native Rust library:
     1. Install [cross](https://github.com/cross-rs/cross) for Rust cross compilation.
