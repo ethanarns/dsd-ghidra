@@ -117,9 +117,7 @@ public class DsRomLoader extends AbstractProgramWrapperLoader {
                 region.createBlock(api);
             }
         } catch (LockException | IllegalArgumentException | MemoryConflictException | AddressOverflowException e) {
-            //noinspection CallToPrintStackTrace
-            e.printStackTrace();
-            throw new CreateMemoryBlockFailedException("Failed to create memory blocks");
+            throw new CreateMemoryBlockFailedException(e);
         }
 
         try {
@@ -127,9 +125,7 @@ public class DsRomLoader extends AbstractProgramWrapperLoader {
                 api.createLabel(api.toAddr(register.address), register.name, true);
             }
         } catch (Exception e) {
-            //noinspection CallToPrintStackTrace
-            e.printStackTrace();
-            throw new CreateLabelFailedException("Failed to create labels");
+            throw new CreateLabelFailedException(e);
         }
     }
 
@@ -144,9 +140,7 @@ public class DsRomLoader extends AbstractProgramWrapperLoader {
                 region.createBlock(api);
             }
         } catch (LockException | IllegalArgumentException | MemoryConflictException | AddressOverflowException e) {
-            //noinspection CallToPrintStackTrace
-            e.printStackTrace();
-            throw new CreateMemoryBlockFailedException("Failed to create memory blocks");
+            throw new CreateMemoryBlockFailedException(e);
         }
 
         try {
@@ -154,9 +148,7 @@ public class DsRomLoader extends AbstractProgramWrapperLoader {
                 api.createLabel(api.toAddr(register.address), register.name, true);
             }
         } catch (Exception e) {
-            //noinspection CallToPrintStackTrace
-            e.printStackTrace();
-            throw new CreateLabelFailedException("Failed to create labels");
+            throw new CreateLabelFailedException(e);
         }
     }
 
@@ -173,14 +165,14 @@ public class DsRomLoader extends AbstractProgramWrapperLoader {
     }
 
     private static class CreateLabelFailedException extends Exception {
-        public CreateLabelFailedException(String message) {
-            super(message);
+        public CreateLabelFailedException(Throwable cause) {
+            super(cause);
         }
     }
 
     private static class CreateMemoryBlockFailedException extends Exception {
-        public CreateMemoryBlockFailedException(String message) {
-            super(message);
+        public CreateMemoryBlockFailedException(Throwable cause) {
+            super(cause);
         }
     }
 }
