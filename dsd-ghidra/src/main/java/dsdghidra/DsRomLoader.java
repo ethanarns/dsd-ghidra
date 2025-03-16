@@ -33,12 +33,9 @@ import ghidra.app.util.opinion.LoadSpec;
 import ghidra.framework.model.DomainObject;
 import ghidra.framework.store.LockException;
 import ghidra.program.flatapi.FlatProgramAPI;
-import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressOverflowException;
 import ghidra.program.model.lang.LanguageCompilerSpecPair;
 import ghidra.program.model.listing.Program;
-import ghidra.program.model.mem.Memory;
-import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.mem.MemoryConflictException;
 import ghidra.util.exception.CancelledException;
 import ghidra.util.task.TaskMonitor;
@@ -120,9 +117,7 @@ public class DsRomLoader extends AbstractProgramWrapperLoader {
                 region.createBlock(api);
             }
         } catch (LockException | IllegalArgumentException | MemoryConflictException | AddressOverflowException e) {
-            //noinspection CallToPrintStackTrace
-            e.printStackTrace();
-            throw new CreateMemoryBlockFailedException("Failed to create memory blocks");
+            throw new CreateMemoryBlockFailedException(e);
         }
 
         try {
@@ -130,9 +125,7 @@ public class DsRomLoader extends AbstractProgramWrapperLoader {
                 api.createLabel(api.toAddr(register.address), register.name, true);
             }
         } catch (Exception e) {
-            //noinspection CallToPrintStackTrace
-            e.printStackTrace();
-            throw new CreateLabelFailedException("Failed to create labels");
+            throw new CreateLabelFailedException(e);
         }
     }
 
@@ -147,9 +140,7 @@ public class DsRomLoader extends AbstractProgramWrapperLoader {
                 region.createBlock(api);
             }
         } catch (LockException | IllegalArgumentException | MemoryConflictException | AddressOverflowException e) {
-            //noinspection CallToPrintStackTrace
-            e.printStackTrace();
-            throw new CreateMemoryBlockFailedException("Failed to create memory blocks");
+            throw new CreateMemoryBlockFailedException(e);
         }
 
         try {
@@ -157,9 +148,7 @@ public class DsRomLoader extends AbstractProgramWrapperLoader {
                 api.createLabel(api.toAddr(register.address), register.name, true);
             }
         } catch (Exception e) {
-            //noinspection CallToPrintStackTrace
-            e.printStackTrace();
-            throw new CreateLabelFailedException("Failed to create labels");
+            throw new CreateLabelFailedException(e);
         }
     }
 
@@ -174,16 +163,17 @@ public class DsRomLoader extends AbstractProgramWrapperLoader {
     public String validateOptions(ByteProvider provider, LoadSpec loadSpec, List<Option> options, Program program) {
         return super.validateOptions(provider, loadSpec, options, program);
     }
-}
 
-class CreateMemoryBlockFailedException extends Exception {
-    public CreateMemoryBlockFailedException(String message) {
-        super(message);
+    private static class CreateLabelFailedException extends Exception {
+        public CreateLabelFailedException(Throwable cause) {
+            super(cause);
+        }
+    }
+
+    private static class CreateMemoryBlockFailedException extends Exception {
+        public CreateMemoryBlockFailedException(Throwable cause) {
+            super(cause);
+        }
     }
 }
 
-class CreateLabelFailedException extends Exception {
-    public CreateLabelFailedException(String message) {
-        super(message);
-    }
-}

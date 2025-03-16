@@ -67,11 +67,13 @@ public class DsLoaderModule extends Structure {
         Memory memory = program.getMemory();
         Address baseAddress = api.toAddr(this.base_address);
 
-        MemoryBlock block = memory.createInitializedBlock(this.getName(), baseAddress,
-                new ByteArrayInputStream(this.getBytes()), this.bytes.len, monitor, overlay);
-        block.setRead(true);
-        block.setWrite(true);
-        block.setExecute(true);
+        if (this.bytes.len > 0) {
+            MemoryBlock block = memory.createInitializedBlock(this.getName(), baseAddress,
+                    new ByteArrayInputStream(this.getBytes()), this.bytes.len, monitor, overlay);
+            block.setRead(true);
+            block.setWrite(true);
+            block.setExecute(true);
+        }
 
         if (this.bss_size > 0) {
             Address bssAddress = baseAddress.add(this.bytes.len);

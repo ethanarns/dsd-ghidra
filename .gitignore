@@ -2,6 +2,7 @@
 /target/
 *.dll
 *.so
+*.dylib
 *.pdb
 /TODO.md
 Cross.toml

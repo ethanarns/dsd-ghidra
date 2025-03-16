@@ -16,8 +16,8 @@ public class SyncRelocation {
     public final Address from;
     private final Program program;
 
-    public SyncRelocation(Program program, DsAddressSpace addressSpace, DsdSyncRelocation dsdRelocation) {
-        Address from = addressSpace.fromAbsolute(dsdRelocation.from);
+    public SyncRelocation(Program program, DsSection dsSection, DsdSyncRelocation dsdRelocation) {
+        Address from = dsSection.getAddress(dsdRelocation.from);
 
         this.dsdRelocation = dsdRelocation;
         this.from = from;
@@ -43,7 +43,7 @@ public class SyncRelocation {
                     }
 
                     String addressSpaceName = reference.getToAddress().getAddressSpace().getName();
-                    int toOverlay = DsAddressSpaces.parseOverlayNumber(addressSpaceName);
+                    int toOverlay = parseOverlayNumber(addressSpaceName);
                     boolean found = false;
                     for (short overlay : overlays) {
                         if (toOverlay == overlay) {
@@ -65,7 +65,7 @@ public class SyncRelocation {
                     return true;
                 }
                 String addressSpaceName = references[0].getToAddress().getAddressSpace().getName();
-                return DsAddressSpaces.isMain(addressSpaceName);
+                return isMain(addressSpaceName);
             }
             case Itcm -> {
                 if (references.length != 1) {
@@ -75,7 +75,7 @@ public class SyncRelocation {
                     return true;
                 }
                 String addressSpaceName = references[0].getToAddress().getAddressSpace().getName();
-                return DsAddressSpaces.isItcm(addressSpaceName);
+                return isItcm(addressSpaceName);
             }
             case Dtcm -> {
                 if (references.length != 1) {
@@ -85,7 +85,7 @@ public class SyncRelocation {
                     return true;
                 }
                 String addressSpaceName = references[0].getToAddress().getAddressSpace().getName();
-                return DsAddressSpaces.isDtcm(addressSpaceName);
+                return isDtcm(addressSpaceName);
             }
         }
         throw new MatchException("Unknown relocation type", null);
@@ -101,7 +101,7 @@ public class SyncRelocation {
         referenceManager.removeAllReferencesFrom(from);
     }
 
-    public void addReferences(FlatProgramAPI api, DsAddressSpaces dsAddressSpaces) {
+    public void addReferences(FlatProgramAPI api, DsModules dsModules) {
         switch (dsdRelocation.getModule()) {
             case None -> {
             }
@@ -110,34 +110,27 @@ public class SyncRelocation {
                 for (int i = 0; i < array.length; i++) {
                     short id = array[i];
                     boolean primary = i == 0;
-                    this.addReference(api, dsAddressSpaces.overlay(id), dsAddressSpaces.overlayBss(id), primary);
+                    this.addReference(api, dsModules.getOverlay(id), primary);
                 }
             }
             case Main -> {
-                this.addReference(api, dsAddressSpaces.main, dsAddressSpaces.mainBss, true);
+                this.addReference(api, dsModules.main, true);
             }
             case Itcm -> {
-                this.addReference(api, dsAddressSpaces.itcm, null, true);
+                this.addReference(api, dsModules.itcm, true);
             }
             case Dtcm -> {
-                this.addReference(api, dsAddressSpaces.dtcm, dsAddressSpaces.dtcmBss, true);
+                this.addReference(api, dsModules.dtcm, true);
             }
         }
     }
 
-    private void addReference(FlatProgramAPI api, DsAddressSpace toCodeSpace, DsAddressSpace toBssSpace,
-        boolean primary
-    ) {
+    private void addReference(FlatProgramAPI api, DsModule toModule, boolean primary) {
         ReferenceManager referenceManager = program.getReferenceManager();
         DataType undefined4Type = DataTypeUtil.getUndefined4();
 
-        DsAddressSpace addressSpace;
-        if (toCodeSpace.contains(dsdRelocation.to)) {
-            addressSpace = toCodeSpace;
-        } else {
-            addressSpace = toBssSpace;
-        }
-        Address to = addressSpace.fromAbsolute(dsdRelocation.to);
+        DsSection dsSection = toModule.getSectionContaining(dsdRelocation.to);
+        Address to = dsSection.getAddress(dsdRelocation.to);
 
         RefType refType = dsdRelocation.getKind().getRefType(dsdRelocation.conditional);
 
@@ -148,5 +141,32 @@ public class SyncRelocation {
             api.createData(from, undefined4Type);
         } catch (CodeUnitInsertionException ignore) {
         }
+    }
+
+    private static boolean isMain(String addressSpaceName) {
+        return addressSpaceName.equals("arm9_main") ||
+            addressSpaceName.equals("arm9_main.bss") ||
+            addressSpaceName.equals("ARM9_Main_Memory") ||
+            addressSpaceName.equals("ARM9_Main_Memory.bss");
+    }
+
+    private static boolean isItcm(String addressSpaceName) {
+        return addressSpaceName.equals("itcm") ||
+            addressSpaceName.equals("ITCM");
+    }
+
+    private static boolean isDtcm(String addressSpaceName) {
+        return addressSpaceName.equals("dtcm") ||
+            addressSpaceName.equals("dtcm.bss") ||
+            addressSpaceName.equals("DTCM") ||
+            addressSpaceName.equals("DTCM.bss");
+    }
+
+    private static int parseOverlayNumber(String blockName) {
+        int sectionStartIndex = blockName.indexOf('.');
+        if (sectionStartIndex >= 0) {
+            blockName = blockName.substring(0, sectionStartIndex);
+        }
+        return DsModules.getOverlayId(blockName);
     }
 }
